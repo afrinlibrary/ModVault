@@ -521,7 +521,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Select all checkbox
         cbSelectAll.setOnCheckedChangeListener((btn, checked) -> {
-            installedAdapter.setShowCheckboxes(checked);
+            installedAdapter.setShowCheckboxes(true);
+            if (checked) installedAdapter.selectAll();
+            else installedAdapter.deselectAll();
         });
         installedRecycler.setLayoutManager(new LinearLayoutManager(this));
         installedRecycler.setAdapter(installedAdapter);

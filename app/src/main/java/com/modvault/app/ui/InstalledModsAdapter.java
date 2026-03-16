@@ -49,6 +49,8 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
     public void setCurrentType(String type) { this.currentType = type; }
     public void setShowCheckboxes(boolean show) { this.showCheckboxes = show; selectedMods.clear(); notifyDataSetChanged(); }
     public List<Object> getSelectedMods() { return new ArrayList<>(selectedMods); }
+    public void selectAll() { selectedMods.clear(); selectedMods.addAll(mods); notifyDataSetChanged(); }
+    public void deselectAll() { selectedMods.clear(); notifyDataSetChanged(); }
     public void updateMetaCache(String filename, ModMetadata meta) {
         metaCache.put(filename, meta);
         notifyDataSetChanged();
