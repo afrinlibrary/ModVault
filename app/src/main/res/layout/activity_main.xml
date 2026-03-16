@@ -439,6 +439,41 @@
                 android:layout_height="1dp"
                 android:background="#333"
                 android:layout_marginBottom="16dp"/>
+            <!-- Custom Scan Paths Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Custom Scan Paths"
+                android:textColor="#BBBBBB"
+                android:textSize="13sp"
+                android:layout_marginBottom="4dp"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Add folders to scan for instances (e.g. Android/data/net.kdt.pojavlaunch/files/custom_instances)"
+                android:textColor="#666666"
+                android:textSize="11sp"
+                android:layout_marginBottom="8dp"/>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/custom_paths_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:nestedScrollingEnabled="false"/>
+            <Button
+                android:id="@+id/btn_add_custom_path"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+ Add Path"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#B87333"
+                android:layout_marginBottom="16dp"/>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#333"
+                android:layout_marginBottom="16dp"/>
+
             <!-- Manual Folder Section -->
             <TextView
                 android:layout_width="match_parent"

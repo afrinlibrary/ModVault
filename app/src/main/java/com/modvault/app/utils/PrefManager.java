@@ -73,4 +73,24 @@ public class PrefManager {
     public boolean hasInstanceFolder() { return getInstanceUri() != null; }
     /** @deprecated use hasInstanceFolder */
     public boolean hasModsFolder() { return hasInstanceFolder(); }
+
+    // Custom scan paths
+    private static final String KEY_CUSTOM_SCAN_PATHS = "custom_scan_paths";
+
+    public java.util.List<String> getCustomScanPaths() {
+        java.util.Set<String> set = prefs.getStringSet(KEY_CUSTOM_SCAN_PATHS, new java.util.LinkedHashSet<>());
+        return new java.util.ArrayList<>(set);
+    }
+
+    public void addCustomScanPath(String path) {
+        java.util.Set<String> set = new java.util.LinkedHashSet<>(getCustomScanPaths());
+        set.add(path);
+        prefs.edit().putStringSet(KEY_CUSTOM_SCAN_PATHS, set).apply();
+    }
+
+    public void removeCustomScanPath(String path) {
+        java.util.Set<String> set = new java.util.LinkedHashSet<>(getCustomScanPaths());
+        set.remove(path);
+        prefs.edit().putStringSet(KEY_CUSTOM_SCAN_PATHS, set).apply();
+    }
 }

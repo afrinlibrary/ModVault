@@ -326,6 +326,61 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private androidx.recyclerview.widget.RecyclerView customPathsRecycler;
+    private com.modvault.app.ui.CustomScanPathsAdapter customPathsAdapter;
+    private java.util.List<String> customScanPaths = new java.util.ArrayList<>();
+
+    private void setupCustomScanPaths() {
+        customPathsRecycler = findViewById(R.id.custom_paths_recycler);
+        customScanPaths = prefs.getCustomScanPaths();
+        customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, path -> {
+            prefs.removeCustomScanPath(path);
+            customScanPaths = prefs.getCustomScanPaths();
+            customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, p -> {
+                prefs.removeCustomScanPath(p);
+                refreshCustomPaths();
+            });
+            customPathsRecycler.setAdapter(customPathsAdapter);
+        });
+        customPathsRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+        customPathsRecycler.setAdapter(customPathsAdapter);
+
+        findViewById(R.id.btn_add_custom_path).setOnClickListener(v -> {
+            android.widget.EditText input = new android.widget.EditText(this);
+            input.setHint("e.g. Android/data/net.kdt.pojavlaunch/files/custom_instances");
+            input.setTextColor(0xFFFFFFFF);
+            input.setHintTextColor(0xFF666666);
+            input.setPadding(32, 16, 32, 16);
+            new AlertDialog.Builder(this)
+                .setTitle("Add Scan Path")
+                .setMessage("Enter the path relative to internal storage:")
+                .setView(input)
+                .setPositiveButton("Add", (d, w) -> {
+                    String path = input.getText().toString().trim();
+                    if (!path.isEmpty()) {
+                        // Prepend sdcard path if not absolute
+                        if (!path.startsWith("/")) {
+                            path = android.os.Environment.getExternalStorageDirectory() + "/" + path;
+                        }
+                        prefs.addCustomScanPath(path);
+                        refreshCustomPaths();
+                        Toast.makeText(this, "Path added", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+        });
+    }
+
+    private void refreshCustomPaths() {
+        customScanPaths = prefs.getCustomScanPaths();
+        customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, path -> {
+            prefs.removeCustomScanPath(path);
+            refreshCustomPaths();
+        });
+        customPathsRecycler.setAdapter(customPathsAdapter);
+    }
+
     private void setupInstances() {
         instanceAdapter = new InstanceAdapter(this, instanceList, (instanceFolder, name) -> {
             android.net.Uri uri = android.net.Uri.fromFile(instanceFolder);
@@ -547,6 +602,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupSettings() {
         btnChooseFolder.setOnClickListener(v -> openFolderPicker());
         updateFolderLabel();
+        setupCustomScanPaths();
             refreshSavedPaths();
     }
 
