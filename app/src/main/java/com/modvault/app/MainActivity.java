@@ -386,12 +386,26 @@ public class MainActivity extends AppCompatActivity {
         paths.addAll(prefs.getCustomScanPaths());
         for (String path : paths) {
             java.io.File dir = new java.io.File(path);
-            if (dir.exists() && dir.isDirectory()) {
-                java.io.File[] instances = dir.listFiles();
-                if (instances != null) {
-                    for (java.io.File f : instances) {
-                        if (f.isDirectory() && !instanceList.contains(f)) instanceList.add(f);
+            if (!dir.exists() || !dir.isDirectory()) continue;
+            java.io.File[] children = dir.listFiles();
+            if (children != null && children.length > 0) {
+                boolean hasInstanceChildren = false;
+                for (java.io.File f : children) {
+                    if (f.isDirectory()) {
+                        // Check if this looks like a custom_instances parent (children are instances)
+                        // or if the folder itself is an instance (contains mods/ folder)
+                        java.io.File modsDir = new java.io.File(f, "mods");
+                        if (modsDir.exists()) {
+                            // f is an instance folder
+                            if (!instanceList.contains(f)) instanceList.add(f);
+                            hasInstanceChildren = true;
+                        }
                     }
+                }
+                if (!hasInstanceChildren) {
+                    // Treat dir itself as an instance
+                    java.io.File modsDir = new java.io.File(dir, "mods");
+                    if (modsDir.exists() && !instanceList.contains(dir)) instanceList.add(dir);
                 }
             }
         }
@@ -1041,7 +1055,7 @@ public class MainActivity extends AppCompatActivity {
             if (path == null) path = uri.toString();
             prefs.addCustomScanPath(path);
             refreshCustomPaths();
-            Toast.makeText(this, "Scan path added!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Scan path added! Tap \"Scan for Instances\" to refresh.", Toast.LENGTH_LONG).show();
             return;
         }
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
