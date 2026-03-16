@@ -18,4 +18,10 @@ public class ModResult {
 
     // Set at runtime
     public boolean isInstalled = false;
+    @SerializedName("gallery") public java.util.List<GalleryItem> gallery;
+
+    public static class GalleryItem {
+        @SerializedName("url") public String url;
+        @SerializedName("title") public String title;
+    }
 }
