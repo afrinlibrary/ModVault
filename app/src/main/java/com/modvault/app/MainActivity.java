@@ -404,10 +404,17 @@ public class MainActivity extends AppCompatActivity {
                     for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
                         if (!child.isDirectory()) continue;
                         String childName = child.getName() != null ? child.getName() : "Unknown";
+                        // Build a tree URI for the child using parent tree + child doc ID
                         String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
                         android.net.Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
                             uri.getAuthority(), childDocId);
-                        // Use SAF marker so InstanceAdapter can handle it
+                        // Verify it works with DocumentFile
+                        androidx.documentfile.provider.DocumentFile test =
+                            androidx.documentfile.provider.DocumentFile.fromTreeUri(MainActivity.this, childTreeUri);
+                        if (test == null || !test.exists()) {
+                            // Fallback: use parent tree URI with child name stored separately
+                            childTreeUri = uri; // use parent, name identifies instance
+                        }
                         java.io.File safMarker = new java.io.File("/saf_instance/" + childTreeUri.toString() + "/" + childName);
                         if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
                     }
