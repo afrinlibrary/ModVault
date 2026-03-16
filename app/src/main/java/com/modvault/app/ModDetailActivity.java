@@ -187,18 +187,26 @@ public class ModDetailActivity extends AppCompatActivity {
     }
 
     private void loadGallery(ModResult fullMod) {
-        RecyclerView galleryRecycler = findViewById(R.id.gallery_recycler);
-        TextView noGallery = findViewById(R.id.tv_no_gallery);
-        if (fullMod.gallery == null || fullMod.gallery.isEmpty()) {
-            noGallery.setVisibility(View.VISIBLE);
-            galleryRecycler.setVisibility(View.GONE);
-        } else {
-            noGallery.setVisibility(View.GONE);
-            galleryRecycler.setVisibility(View.VISIBLE);
-            galleryRecycler.setLayoutManager(new GridLayoutManager(this, 2));
-            List<String> urls = new ArrayList<>();
-            for (ModResult.GalleryItem item : fullMod.gallery) urls.add(item.url);
-            galleryRecycler.setAdapter(new GalleryAdapter(this, urls));
+        try {
+            RecyclerView galleryRecycler = findViewById(R.id.gallery_recycler);
+            TextView noGallery = findViewById(R.id.tv_no_gallery);
+            if (fullMod == null || fullMod.gallery == null || fullMod.gallery.isEmpty()) {
+                if (noGallery != null) noGallery.setVisibility(View.VISIBLE);
+                if (galleryRecycler != null) galleryRecycler.setVisibility(View.GONE);
+            } else {
+                if (noGallery != null) noGallery.setVisibility(View.GONE);
+                if (galleryRecycler != null) {
+                    galleryRecycler.setVisibility(View.VISIBLE);
+                    galleryRecycler.setLayoutManager(new GridLayoutManager(this, 2));
+                    List<String> urls = new ArrayList<>();
+                    for (ModResult.GalleryItem item : fullMod.gallery) {
+                        if (item != null && item.url != null) urls.add(item.url);
+                    }
+                    galleryRecycler.setAdapter(new GalleryAdapter(this, urls));
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("ModVault", "loadGallery failed: " + e.getMessage());
         }
     }
 
