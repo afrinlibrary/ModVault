@@ -362,7 +362,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupInstances() {
         instanceAdapter = new InstanceAdapter(this, instanceList, (instanceFolder, name) -> {
-            android.net.Uri uri = android.net.Uri.fromFile(instanceFolder);
+            android.net.Uri uri;
+            String absPath = instanceFolder.getAbsolutePath();
+            if (absPath.startsWith("/saf_instance/")) {
+                // Extract SAF URI from marker path
+                String withoutPrefix = absPath.substring("/saf_instance/".length());
+                int lastSlash = withoutPrefix.lastIndexOf("/");
+                String uriStr = withoutPrefix.substring(0, lastSlash);
+                uri = android.net.Uri.parse(uriStr);
+            } else {
+                uri = android.net.Uri.fromFile(instanceFolder);
+            }
             prefs.saveInstanceUri(uri);
             updateFolderLabel();
             Toast.makeText(this, "Instance set: " + name, Toast.LENGTH_SHORT).show();
@@ -382,50 +392,21 @@ public class MainActivity extends AppCompatActivity {
         paths.add(ext + "/games/CopperLauncher/custom_instances");
         paths.add(ext + "/games/Amethyst/custom_instances");
         paths.add(ext + "/games/PojavLauncher/instances");
-        // Add user-defined custom scan paths
+        // Add user-defined custom scan paths - handle both SAF URIs and file paths
         for (String customPath : prefs.getCustomScanPaths()) {
             if (customPath.startsWith("content://")) {
-                // SAF URI - use DocumentFile
+                // SAF URI - add as a virtual instance entry using DocumentFile name
                 try {
                     android.net.Uri uri = android.net.Uri.parse(customPath);
                     androidx.documentfile.provider.DocumentFile dir =
                         androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
                     if (dir == null || !dir.exists()) continue;
-                    // Check if dir itself is an instance (has mods subfolder)
-                    androidx.documentfile.provider.DocumentFile modsCheck = dir.findFile("mods");
-                    if (modsCheck != null && modsCheck.isDirectory()) {
-                        // It's a single instance - convert to file path if possible
-                        String realPath = getRealPathFromUri(uri);
-                        if (realPath != null) {
-                            java.io.File f = new java.io.File(realPath);
-                            if (!instanceList.contains(f)) instanceList.add(f);
-                        }
-                    } else {
-                        // It's a parent folder - list children
-                        for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
-                            if (child.isDirectory()) {
-                                androidx.documentfile.provider.DocumentFile childMods = child.findFile("mods");
-                                if (childMods != null && childMods.isDirectory()) {
-                                    // Try to get real path
-                                    String treeId = android.provider.DocumentsContract.getTreeDocumentId(uri);
-                                    String childId = treeId + "/" + child.getName();
-                                    android.net.Uri childUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                                        uri.getAuthority(), childId);
-                                    String realPath = null;
-                                    try {
-                                        String[] split = childId.split(":");
-                                        if (split.length >= 2 && "primary".equalsIgnoreCase(split[0])) {
-                                            realPath = android.os.Environment.getExternalStorageDirectory() + "/" + split[1];
-                                        }
-                                    } catch (Exception ignored) {}
-                                    if (realPath != null) {
-                                        java.io.File f = new java.io.File(realPath);
-                                        if (!instanceList.contains(f)) instanceList.add(f);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Create a dummy File that represents this SAF instance
+                    // Store the URI so InstanceAdapter can use it
+                    String name = dir.getName() != null ? dir.getName() : "Unknown";
+                    // We use a special marker path so we can identify SAF instances
+                    java.io.File safMarker = new java.io.File("/saf_instance/" + customPath + "/" + name);
+                    if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
                 } catch (Exception e) {
                     android.util.Log.e("ModVault", "Custom scan SAF error: " + e.getMessage());
                 }
@@ -1078,19 +1059,48 @@ public class MainActivity extends AppCompatActivity {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            // Convert to real path if possible, otherwise store URI string
-            String path = null;
-            try {
-                String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
-                String[] split = docId.split(":");
-                if (split.length >= 2 && "primary".equalsIgnoreCase(split[0])) {
-                    path = android.os.Environment.getExternalStorageDirectory() + "/" + split[1];
+            // Scan the picked folder for instances using DocumentFile
+            androidx.documentfile.provider.DocumentFile dir =
+                androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
+            if (dir != null && dir.exists()) {
+                int found = 0;
+                // Check if picked folder itself is an instance
+                androidx.documentfile.provider.DocumentFile modsDir = dir.findFile("mods");
+                if (modsDir != null && modsDir.isDirectory()) {
+                    // It's a single instance - save its URI directly
+                    prefs.saveInstanceUri(uri);
+                    updateFolderLabel();
+                    refreshSavedPaths();
+                    Toast.makeText(this, "Instance found and set: " + dir.getName(), Toast.LENGTH_SHORT).show();
+                    scanForInstances();
+                    return;
                 }
-            } catch (Exception ignored) {}
-            if (path == null) path = uri.toString();
-            prefs.addCustomScanPath(path);
-            refreshCustomPaths();
-            Toast.makeText(this, "Scan path added! Tap \"Scan for Instances\" to refresh.", Toast.LENGTH_LONG).show();
+                // It's a parent folder - list children as instances
+                for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
+                    if (child.isDirectory()) {
+                        androidx.documentfile.provider.DocumentFile childMods = child.findFile("mods");
+                        if (childMods != null && childMods.isDirectory()) {
+                            // Build child URI from tree
+                            String treeId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+                            String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
+                            Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                                uri.getAuthority(), childDocId);
+                            prefs.addCustomScanPath(childTreeUri.toString());
+                            found++;
+                        }
+                    }
+                }
+                if (found > 0) {
+                    refreshCustomPaths();
+                    scanForInstances();
+                    Toast.makeText(this, found + " instance(s) found!", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Save the URI as a scan path anyway
+                    prefs.addCustomScanPath(uri.toString());
+                    refreshCustomPaths();
+                    Toast.makeText(this, "Path saved. No instances found inside.", Toast.LENGTH_LONG).show();
+                }
+            }
             return;
         }
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
