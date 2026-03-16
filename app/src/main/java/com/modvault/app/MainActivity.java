@@ -346,29 +346,8 @@ public class MainActivity extends AppCompatActivity {
         customPathsRecycler.setAdapter(customPathsAdapter);
 
         findViewById(R.id.btn_add_custom_path).setOnClickListener(v -> {
-            android.widget.EditText input = new android.widget.EditText(this);
-            input.setHint("e.g. Android/data/net.kdt.pojavlaunch/files/custom_instances");
-            input.setTextColor(0xFFFFFFFF);
-            input.setHintTextColor(0xFF666666);
-            input.setPadding(32, 16, 32, 16);
-            new AlertDialog.Builder(this)
-                .setTitle("Add Scan Path")
-                .setMessage("Enter the path relative to internal storage:")
-                .setView(input)
-                .setPositiveButton("Add", (d, w) -> {
-                    String path = input.getText().toString().trim();
-                    if (!path.isEmpty()) {
-                        // Prepend sdcard path if not absolute
-                        if (!path.startsWith("/")) {
-                            path = android.os.Environment.getExternalStorageDirectory() + "/" + path;
-                        }
-                        prefs.addCustomScanPath(path);
-                        refreshCustomPaths();
-                        Toast.makeText(this, "Path added", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            startActivityForResult(intent, 4001);
         });
     }
 
@@ -1047,6 +1026,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 4001 && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            getContentResolver().takePersistableUriPermission(uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            // Convert to real path if possible, otherwise store URI string
+            String path = null;
+            try {
+                String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+                String[] split = docId.split(":");
+                if (split.length >= 2 && "primary".equalsIgnoreCase(split[0])) {
+                    path = android.os.Environment.getExternalStorageDirectory() + "/" + split[1];
+                }
+            } catch (Exception ignored) {}
+            if (path == null) path = uri.toString();
+            prefs.addCustomScanPath(path);
+            refreshCustomPaths();
+            Toast.makeText(this, "Scan path added!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,

@@ -120,11 +120,9 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
         // Update badge
         ModMetadata meta = metaCache.get(name);
         if (meta != null && meta.hasUpdate) {
-            holder.updateBadge.setVisibility(View.VISIBLE);
             holder.btnUpdate.setVisibility(View.VISIBLE);
             holder.btnUpdate.setOnClickListener(v -> { if (updateListener != null) updateListener.onUpdate(modRef, meta); });
         } else {
-            holder.updateBadge.setVisibility(View.GONE);
             holder.btnUpdate.setVisibility(View.GONE);
         }
 
@@ -153,7 +151,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
     static class ViewHolder extends RecyclerView.ViewHolder {
         CheckBox checkbox;
         android.widget.ImageView icon;
-        TextView name, size, typeBadge, updateBadge;
+        TextView name, size, typeBadge;
         ImageButton btnDelete, btnDisable, btnUpdate;
         ViewHolder(View v) {
             super(v);
@@ -162,7 +160,6 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
             name = v.findViewById(R.id.mod_filename);
             size = v.findViewById(R.id.mod_size);
             typeBadge = v.findViewById(R.id.mod_type_badge);
-            updateBadge = v.findViewById(R.id.mod_update_badge);
             btnDelete = v.findViewById(R.id.btn_delete_mod);
             btnDisable = v.findViewById(R.id.btn_disable_mod);
             btnUpdate = v.findViewById(R.id.btn_update_mod);

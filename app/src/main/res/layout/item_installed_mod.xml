@@ -64,18 +64,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="#888"
                 android:textSize="11sp"/>
-            <TextView
-                android:id="@+id/mod_update_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Update"
-                android:textColor="#FFFFFF"
-                android:textSize="10sp"
-                android:background="#B87333"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="1dp"
-                android:layout_marginStart="8dp"
-                android:visibility="gone"/>
+
         </LinearLayout>
     </LinearLayout>
 
