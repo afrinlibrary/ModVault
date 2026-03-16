@@ -395,7 +395,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         instanceAdapter.notifyDataSetChanged();
-        }
     }
 
     private void setupSourceToggle() {
