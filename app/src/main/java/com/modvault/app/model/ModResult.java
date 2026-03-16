@@ -18,10 +18,3 @@ public class ModResult {
 
     // Set at runtime
     public boolean isInstalled = false;
-    @com.google.gson.annotations.SerializedName("gallery") public java.util.List<GalleryItem> gallery;
-
-    public static class GalleryItem {
-        @com.google.gson.annotations.SerializedName("url") public String url;
-        @com.google.gson.annotations.SerializedName("title") public String title;
-    }
-}
