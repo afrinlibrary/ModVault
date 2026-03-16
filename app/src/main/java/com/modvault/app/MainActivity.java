@@ -383,29 +383,64 @@ public class MainActivity extends AppCompatActivity {
         paths.add(ext + "/games/Amethyst/custom_instances");
         paths.add(ext + "/games/PojavLauncher/instances");
         // Add user-defined custom scan paths
-        paths.addAll(prefs.getCustomScanPaths());
+        for (String customPath : prefs.getCustomScanPaths()) {
+            if (customPath.startsWith("content://")) {
+                // SAF URI - use DocumentFile
+                try {
+                    android.net.Uri uri = android.net.Uri.parse(customPath);
+                    androidx.documentfile.provider.DocumentFile dir =
+                        androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
+                    if (dir == null || !dir.exists()) continue;
+                    // Check if dir itself is an instance (has mods subfolder)
+                    androidx.documentfile.provider.DocumentFile modsCheck = dir.findFile("mods");
+                    if (modsCheck != null && modsCheck.isDirectory()) {
+                        // It's a single instance - convert to file path if possible
+                        String realPath = getRealPathFromUri(uri);
+                        if (realPath != null) {
+                            java.io.File f = new java.io.File(realPath);
+                            if (!instanceList.contains(f)) instanceList.add(f);
+                        }
+                    } else {
+                        // It's a parent folder - list children
+                        for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
+                            if (child.isDirectory()) {
+                                androidx.documentfile.provider.DocumentFile childMods = child.findFile("mods");
+                                if (childMods != null && childMods.isDirectory()) {
+                                    // Try to get real path
+                                    String treeId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+                                    String childId = treeId + "/" + child.getName();
+                                    android.net.Uri childUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                                        uri.getAuthority(), childId);
+                                    String realPath = null;
+                                    try {
+                                        String[] split = childId.split(":");
+                                        if (split.length >= 2 && "primary".equalsIgnoreCase(split[0])) {
+                                            realPath = android.os.Environment.getExternalStorageDirectory() + "/" + split[1];
+                                        }
+                                    } catch (Exception ignored) {}
+                                    if (realPath != null) {
+                                        java.io.File f = new java.io.File(realPath);
+                                        if (!instanceList.contains(f)) instanceList.add(f);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("ModVault", "Custom scan SAF error: " + e.getMessage());
+                }
+            } else {
+                // Regular file path
+                paths.add(customPath);
+            }
+        }
         for (String path : paths) {
             java.io.File dir = new java.io.File(path);
             if (!dir.exists() || !dir.isDirectory()) continue;
             java.io.File[] children = dir.listFiles();
-            if (children != null && children.length > 0) {
-                boolean hasInstanceChildren = false;
+            if (children != null) {
                 for (java.io.File f : children) {
-                    if (f.isDirectory()) {
-                        // Check if this looks like a custom_instances parent (children are instances)
-                        // or if the folder itself is an instance (contains mods/ folder)
-                        java.io.File modsDir = new java.io.File(f, "mods");
-                        if (modsDir.exists()) {
-                            // f is an instance folder
-                            if (!instanceList.contains(f)) instanceList.add(f);
-                            hasInstanceChildren = true;
-                        }
-                    }
-                }
-                if (!hasInstanceChildren) {
-                    // Treat dir itself as an instance
-                    java.io.File modsDir = new java.io.File(dir, "mods");
-                    if (modsDir.exists() && !instanceList.contains(dir)) instanceList.add(dir);
+                    if (f.isDirectory() && !instanceList.contains(f)) instanceList.add(f);
                 }
             }
         }
