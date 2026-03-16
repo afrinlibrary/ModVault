@@ -18,3 +18,4 @@ public class ModResult {
 
     // Set at runtime
     public boolean isInstalled = false;
+}
