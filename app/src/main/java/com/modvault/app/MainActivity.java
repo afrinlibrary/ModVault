@@ -959,6 +959,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshInstalled() {
+        try {
         installedMods.clear();
         Uri instanceUri = prefs.getInstanceUri();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
@@ -995,6 +996,11 @@ public class MainActivity extends AppCompatActivity {
         if (tvInstalledCount != null)
             tvInstalledCount.setText(installedMods.size() + " files");
         emptyInstalled.setVisibility(installedMods.isEmpty() ? View.VISIBLE : View.GONE);
+        installedAdapter.notifyDataSetChanged();
+        } catch (Exception e) {
+            android.util.Log.e("ModVault", "refreshInstalled error: " + e.getMessage());
+            Toast.makeText(this, "Error loading installed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private java.io.File[] getInstalledFiles() {
