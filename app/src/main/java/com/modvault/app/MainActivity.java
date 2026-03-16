@@ -392,9 +392,28 @@ public class MainActivity extends AppCompatActivity {
         paths.add(ext + "/games/CopperLauncher/custom_instances");
         paths.add(ext + "/games/Amethyst/custom_instances");
         paths.add(ext + "/games/PojavLauncher/instances");
-        // Add user-defined custom scan paths (file paths only - SAF paths not supported for scanning)
+        // Add user-defined custom scan paths
         for (String customPath : prefs.getCustomScanPaths()) {
-            if (!customPath.startsWith("content://")) {
+            if (customPath.startsWith("content://")) {
+                // SAF path - use DocumentFile to list children
+                try {
+                    android.net.Uri uri = android.net.Uri.parse(customPath);
+                    androidx.documentfile.provider.DocumentFile dir =
+                        androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
+                    if (dir == null || !dir.exists()) continue;
+                    for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
+                        if (!child.isDirectory()) continue;
+                        String childName = child.getName() != null ? child.getName() : "Unknown";
+                        String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
+                        android.net.Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                            uri.getAuthority(), childDocId);
+                        java.io.File safMarker = new java.io.File("/saf_instance/" + childTreeUri + "/" + childName);
+                        if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("ModVault", "SAF scan error: " + e.getMessage());
+                }
+            } else {
                 paths.add(customPath);
             }
         }
