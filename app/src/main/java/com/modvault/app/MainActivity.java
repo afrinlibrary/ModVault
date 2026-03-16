@@ -486,6 +486,7 @@ public class MainActivity extends AppCompatActivity {
         installedTabResourcepacks.setTextColor("resourcepacks".equals(currentInstalledType) ? 0xFFB87333 : 0xFF888888);
         installedTabResourcepacks.setTypeface(null, "resourcepacks".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         installedAdapter.setShowDisable("mods".equals(currentInstalledType));
+        installedAdapter.setCurrentType(currentInstalledType);
         installedAdapter.notifyDataSetChanged();
     }
 

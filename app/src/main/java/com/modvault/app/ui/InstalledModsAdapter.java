@@ -22,6 +22,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
     private final OnDeleteListener deleteListener;
     private final OnDisableListener disableListener;
     private boolean showDisable = true;
+    private String currentType = "mods";
 
     public InstalledModsAdapter(List<Object> mods, OnDeleteListener deleteListener) {
         this.mods = mods;
@@ -36,6 +37,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
     }
 
     public void setShowDisable(boolean show) { this.showDisable = show; }
+    public void setCurrentType(String type) { this.currentType = type; }
 
     @NonNull @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -59,17 +61,31 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
             size = f.length();
         }
 
-        // Load icon
+        // Load icon - set placeholder first to prevent swapping during scroll
         if (holder.icon != null) {
-            ModIconLoader.FileType fileType = "shaderpacks".equals(getSubFolder(name))
-                ? ModIconLoader.FileType.SHADER
-                : "resourcepacks".equals(getSubFolder(name))
-                ? ModIconLoader.FileType.RESOURCEPACK
-                : ModIconLoader.FileType.MOD;
+            holder.icon.setImageResource(R.drawable.ic_mod_default);
+            holder.icon.setTag(name); // tag with filename to detect recycled views
+            ModIconLoader.FileType fileType = getFileType();
+            final String tagName = name;
+            final android.widget.ImageView iconView = holder.icon;
             if (mod instanceof DocumentFile) {
-                ModIconLoader.load(holder.icon.getContext(), (DocumentFile) mod, fileType, holder.icon);
+                ModIconLoader.load(iconView.getContext(), (DocumentFile) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
+                    @Override public void setImageBitmap(android.graphics.Bitmap bm) {
+                        if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm);
+                    }
+                    @Override public void setImageResource(int res) {
+                        if (tagName.equals(iconView.getTag())) iconView.setImageResource(res);
+                    }
+                });
             } else if (mod instanceof File) {
-                ModIconLoader.load(holder.icon.getContext(), (File) mod, fileType, holder.icon);
+                ModIconLoader.load(iconView.getContext(), (File) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
+                    @Override public void setImageBitmap(android.graphics.Bitmap bm) {
+                        if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm);
+                    }
+                    @Override public void setImageResource(int res) {
+                        if (tagName.equals(iconView.getTag())) iconView.setImageResource(res);
+                    }
+                });
             }
         }
         holder.name.setText(name);
@@ -98,11 +114,10 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
 
     @Override public int getItemCount() { return mods.size(); }
 
-    private String getSubFolder(String name) {
-        if (name.endsWith(".disabled")) name = name.replace(".disabled", "");
-        // Can't determine from name alone - use zip for res/shader, jar for mod
-        if (name.endsWith(".jar")) return "mods";
-        return "unknown";
+    private ModIconLoader.FileType getFileType() {
+        if ("shaderpacks".equals(currentType)) return ModIconLoader.FileType.SHADER;
+        if ("resourcepacks".equals(currentType)) return ModIconLoader.FileType.RESOURCEPACK;
+        return ModIconLoader.FileType.MOD;
     }
 
     private String formatSize(long bytes) {
