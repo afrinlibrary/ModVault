@@ -1,5 +1,6 @@
 package com.modvault.app.ui;
 
+import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.RecyclerView;
 import com.modvault.app.R;
+import com.modvault.app.utils.ModIconLoader;
 import java.io.File;
 import java.util.List;
 
@@ -57,6 +59,19 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
             size = f.length();
         }
 
+        // Load icon
+        if (holder.icon != null) {
+            ModIconLoader.FileType fileType = "shaderpacks".equals(getSubFolder(name))
+                ? ModIconLoader.FileType.SHADER
+                : "resourcepacks".equals(getSubFolder(name))
+                ? ModIconLoader.FileType.RESOURCEPACK
+                : ModIconLoader.FileType.MOD;
+            if (mod instanceof DocumentFile) {
+                ModIconLoader.load(holder.icon.getContext(), (DocumentFile) mod, fileType, holder.icon);
+            } else if (mod instanceof File) {
+                ModIconLoader.load(holder.icon.getContext(), (File) mod, fileType, holder.icon);
+            }
+        }
         holder.name.setText(name);
         holder.size.setText(formatSize(size));
 
@@ -83,12 +98,20 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
 
     @Override public int getItemCount() { return mods.size(); }
 
+    private String getSubFolder(String name) {
+        if (name.endsWith(".disabled")) name = name.replace(".disabled", "");
+        // Can't determine from name alone - use zip for res/shader, jar for mod
+        if (name.endsWith(".jar")) return "mods";
+        return "unknown";
+    }
+
     private String formatSize(long bytes) {
         if (bytes >= 1024 * 1024) return String.format("%.1f MB", bytes / (1024f * 1024f));
         return String.format("%.1f KB", bytes / 1024f);
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        android.widget.ImageView icon;
         TextView name, size, typeBadge;
         ImageButton btnDelete, btnDisable;
         ViewHolder(View v) {
@@ -96,6 +119,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
             name = v.findViewById(R.id.mod_filename);
             size = v.findViewById(R.id.mod_size);
             typeBadge = v.findViewById(R.id.mod_type_badge);
+            icon = v.findViewById(R.id.mod_icon);
             btnDelete = v.findViewById(R.id.btn_delete_mod);
             btnDisable = v.findViewById(R.id.btn_disable_mod);
         }
