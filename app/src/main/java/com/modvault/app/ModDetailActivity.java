@@ -1,7 +1,5 @@
 package com.modvault.app;
 
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
@@ -10,6 +8,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
@@ -19,13 +18,16 @@ import com.modvault.app.api.CurseForgeApi;
 import com.modvault.app.api.ModrinthApi;
 import com.modvault.app.model.ModResult;
 import com.modvault.app.model.ModVersion;
+import com.modvault.app.ui.GalleryAdapter;
 import com.modvault.app.ui.VersionAdapter;
 import com.modvault.app.utils.ModDownloader;
 import com.modvault.app.utils.PrefManager;
 import android.app.ProgressDialog;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import java.util.List;
+import java.util.ArrayList;
 
 public class ModDetailActivity extends AppCompatActivity {
 
@@ -34,13 +36,17 @@ public class ModDetailActivity extends AppCompatActivity {
     public static final String EXTRA_SOURCE = "source";
 
     private ModResult mod;
-    private String projectType;
+    private String projectType, source;
+    private boolean includeSnapshots;
     private ModDownloader downloader;
     private PrefManager prefs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ModrinthApi api = new ModrinthApi();
     private final CurseForgeApi cfApi = new CurseForgeApi();
-    private String source;
+
+    // Tab views
+    private TextView tabDescription, tabGallery, tabVersions;
+    private View contentDescription, contentGallery, contentVersions;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,23 +56,21 @@ public class ModDetailActivity extends AppCompatActivity {
         downloader = new ModDownloader(this);
         prefs = new PrefManager(this);
 
-        // Get mod from intent
         String modJson = getIntent().getStringExtra(EXTRA_MOD);
         projectType = getIntent().getStringExtra(EXTRA_PROJECT_TYPE);
         source = getIntent().getStringExtra(EXTRA_SOURCE);
+        includeSnapshots = getIntent().getBooleanExtra("include_snapshots", false);
         String gameVersion = getIntent().getStringExtra("game_version") != null ? getIntent().getStringExtra("game_version") : "";
         String loader = getIntent().getStringExtra("loader") != null ? getIntent().getStringExtra("loader") : "";
-        boolean includeSnapshots = getIntent().getBooleanExtra("include_snapshots", false);
+
         if (modJson == null) { finish(); return; }
         mod = new com.google.gson.Gson().fromJson(modJson, ModResult.class);
 
         // Back button
-        ImageButton btnBack = findViewById(R.id.btn_back);
-        btnBack.setOnClickListener(v -> finish());
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
 
         // Toolbar title
-        TextView tvTitle = findViewById(R.id.tv_detail_title);
-        tvTitle.setText(mod.title);
+        ((TextView) findViewById(R.id.tv_detail_title)).setText(mod.title);
 
         // Icon
         ImageView icon = findViewById(R.id.detail_icon);
@@ -76,20 +80,14 @@ public class ModDetailActivity extends AppCompatActivity {
             icon.setImageResource(R.drawable.ic_mod_default);
         }
 
-        // Title + type badge
         ((TextView) findViewById(R.id.detail_title)).setText(mod.title);
         String typeLabel = "resourcepack".equals(projectType) ? "Resource Pack"
                          : "shader".equals(projectType) ? "Shader" : "Mod";
         ((TextView) findViewById(R.id.detail_type_badge)).setText(typeLabel);
-
-        // Description
-        ((TextView) findViewById(R.id.detail_description)).setText(mod.description);
-
-        // Stats
         ((TextView) findViewById(R.id.detail_downloads)).setText(formatNumber(mod.downloads));
         ((TextView) findViewById(R.id.detail_followers)).setText(formatNumber(mod.followers));
 
-        // Categories chips
+        // Categories
         ChipGroup chipGroup = findViewById(R.id.detail_categories);
         if (mod.categories != null) {
             for (String cat : mod.categories) {
@@ -104,16 +102,39 @@ public class ModDetailActivity extends AppCompatActivity {
             }
         }
 
-        // Fetch full project details for followers count
-        api.getProject(mod.projectId, new com.modvault.app.api.ModrinthApi.Callback<com.modvault.app.model.ModResult>() {
-            public void onSuccess(com.modvault.app.model.ModResult fullMod) {
-                handler.post(() -> {
-                    ((TextView) findViewById(R.id.detail_followers)).setText(formatNumber(fullMod.followers));
-                    ((TextView) findViewById(R.id.detail_downloads)).setText(formatNumber(fullMod.downloads));
-                });
-            }
-            public void onError(String error) {}
-        });
+        // Tabs
+        tabDescription = findViewById(R.id.tab_description);
+        tabGallery = findViewById(R.id.tab_gallery);
+        tabVersions = findViewById(R.id.tab_versions);
+        contentDescription = findViewById(R.id.content_description);
+        contentGallery = findViewById(R.id.content_gallery);
+        contentVersions = findViewById(R.id.content_versions);
+
+        tabDescription.setOnClickListener(v -> switchTab(0));
+        tabGallery.setOnClickListener(v -> switchTab(1));
+        tabVersions.setOnClickListener(v -> switchTab(2));
+
+        // Description tab content
+        ((TextView) findViewById(R.id.detail_description)).setText(mod.description);
+
+        // Fetch full project for followers + body + gallery
+        if (!"curseforge".equals(source)) {
+            api.getProject(mod.projectId, new ModrinthApi.Callback<ModResult>() {
+                public void onSuccess(ModResult fullMod) {
+                    handler.post(() -> {
+                        ((TextView) findViewById(R.id.detail_followers)).setText(formatNumber(fullMod.followers));
+                        ((TextView) findViewById(R.id.detail_downloads)).setText(formatNumber(fullMod.downloads));
+                        // Full description body
+                        if (fullMod.description != null) {
+                            ((TextView) findViewById(R.id.detail_description)).setText(fullMod.description);
+                        }
+                        // Gallery
+                        loadGallery(fullMod);
+                    });
+                }
+                public void onError(String error) {}
+            });
+        }
 
         // Load versions
         ProgressBar progress = findViewById(R.id.detail_versions_progress);
@@ -122,14 +143,10 @@ public class ModDetailActivity extends AppCompatActivity {
         progress.setVisibility(View.VISIBLE);
 
         if ("curseforge".equals(source)) {
-            // For CurseForge, use getLatestFile to get the version
             cfApi.getLatestFile(mod.projectId, "", "", fileObj -> {
                 handler.post(() -> {
                     progress.setVisibility(View.GONE);
-                    if (fileObj == null) {
-                        Toast.makeText(this, "No versions found", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                    if (fileObj == null) return;
                     String fileId = fileObj.get("id").getAsString();
                     String fileName = fileObj.get("fileName").getAsString();
                     cfApi.getDownloadUrl(mod.projectId, fileId, url -> {
@@ -137,24 +154,16 @@ public class ModDetailActivity extends AppCompatActivity {
                             ModVersion fakeVersion = new ModVersion();
                             fakeVersion.versionNumber = fileName;
                             fakeVersion.versionType = "release";
-                            fakeVersion.dependencies = new java.util.ArrayList<>();
+                            fakeVersion.dependencies = new ArrayList<>();
                             ModVersion.VersionFile file = new ModVersion.VersionFile();
-                            file.url = url;
-                            file.filename = fileName;
-                            file.primary = true;
+                            file.url = url; file.filename = fileName; file.primary = true;
                             fakeVersion.files = java.util.Arrays.asList(file);
-                            VersionAdapter adapter = new VersionAdapter(
-                                java.util.Arrays.asList(fakeVersion),
-                                (version, f) -> startDownload(version, f));
-                            versionsRecycler.setAdapter(adapter);
+                            versionsRecycler.setAdapter(new VersionAdapter(
+                                java.util.Arrays.asList(fakeVersion), (v, f) -> startDownload(v, f)));
                         });
-                    }, err -> handler.post(() ->
-                        Toast.makeText(this, "CF Error: " + err, Toast.LENGTH_SHORT).show()));
+                    }, err -> {});
                 });
-            }, error -> handler.post(() -> {
-                progress.setVisibility(View.GONE);
-                Toast.makeText(this, "Failed to load versions", Toast.LENGTH_SHORT).show();
-            }));
+            }, error -> handler.post(() -> progress.setVisibility(View.GONE)));
         } else {
             api.getVersions(mod.projectId, gameVersion, loader, versions -> {
                 handler.post(() -> {
@@ -163,14 +172,12 @@ public class ModDetailActivity extends AppCompatActivity {
                         Toast.makeText(this, "No versions found", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    List<ModVersion> filtered = new java.util.ArrayList<>();
+                    List<ModVersion> filtered = new ArrayList<>();
                     for (ModVersion v : versions) {
                         String vType = v.versionType != null ? v.versionType : "release";
                         if ("release".equals(vType) || includeSnapshots) filtered.add(v);
                     }
-                    VersionAdapter adapter = new VersionAdapter(filtered, (version, file) ->
-                        startDownload(version, file));
-                    versionsRecycler.setAdapter(adapter);
+                    versionsRecycler.setAdapter(new VersionAdapter(filtered, (v, f) -> startDownload(v, f)));
                 });
             }, error -> handler.post(() -> {
                 progress.setVisibility(View.GONE);
@@ -179,10 +186,37 @@ public class ModDetailActivity extends AppCompatActivity {
         }
     }
 
+    private void loadGallery(ModResult fullMod) {
+        RecyclerView galleryRecycler = findViewById(R.id.gallery_recycler);
+        TextView noGallery = findViewById(R.id.tv_no_gallery);
+        if (fullMod.gallery == null || fullMod.gallery.isEmpty()) {
+            noGallery.setVisibility(View.VISIBLE);
+            galleryRecycler.setVisibility(View.GONE);
+        } else {
+            noGallery.setVisibility(View.GONE);
+            galleryRecycler.setVisibility(View.VISIBLE);
+            galleryRecycler.setLayoutManager(new GridLayoutManager(this, 2));
+            List<String> urls = new ArrayList<>();
+            for (ModResult.GalleryItem item : fullMod.gallery) urls.add(item.url);
+            galleryRecycler.setAdapter(new GalleryAdapter(this, urls));
+        }
+    }
+
+    private void switchTab(int index) {
+        contentDescription.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
+        contentGallery.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
+        contentVersions.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
+        tabDescription.setTextColor(index == 0 ? 0xFFB87333 : 0xFF888888);
+        tabGallery.setTextColor(index == 1 ? 0xFFB87333 : 0xFF888888);
+        tabVersions.setTextColor(index == 2 ? 0xFFB87333 : 0xFF888888);
+        tabDescription.setTypeface(null, index == 0 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        tabGallery.setTypeface(null, index == 1 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        tabVersions.setTypeface(null, index == 2 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+    }
+
     private void startDownload(ModVersion version, ModVersion.VersionFile file) {
         String subFolder = "resourcepack".equals(projectType) ? "resourcepacks"
                          : "shader".equals(projectType) ? "shaderpacks" : "mods";
-
         ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("Installing " + mod.title);
         progress.setMessage("Downloading\u2026");
@@ -190,7 +224,6 @@ public class ModDetailActivity extends AppCompatActivity {
         progress.setMax(100);
         progress.setCancelable(false);
         progress.show();
-
         ModDownloader.DownloadCallback callback = new ModDownloader.DownloadCallback() {
             public void onProgress(String fileName, int percent) {
                 handler.post(() -> { progress.setMessage(fileName); progress.setProgress(percent); });
@@ -209,15 +242,12 @@ public class ModDetailActivity extends AppCompatActivity {
                 });
             }
         };
-
         Uri instanceUri = prefs.getInstanceUri();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
                 && instanceUri != null && "content".equals(instanceUri.getScheme())) {
-            downloader.downloadMod(file, instanceUri, subFolder,
-                version.dependencies, "", "", callback);
+            downloader.downloadMod(file, instanceUri, subFolder, version.dependencies, "", "", callback);
         } else {
-            java.io.File instanceDir = prefs.getInstanceUri() != null
-                ? new java.io.File(prefs.getInstanceUri().getPath()) : null;
+            java.io.File instanceDir = instanceUri != null ? new java.io.File(instanceUri.getPath()) : null;
             if (instanceDir == null) { progress.dismiss(); return; }
             java.io.File targetDir = new java.io.File(instanceDir, subFolder);
             if (!targetDir.exists()) targetDir.mkdirs();
