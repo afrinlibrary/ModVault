@@ -441,19 +441,38 @@ public class MainActivity extends AppCompatActivity {
                 ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
                 : ((java.io.File) mod).getName();
             new AlertDialog.Builder(this)
-                .setTitle("Delete mod?")
-                .setMessage("Remove \"" + modName + "\" from your instance folder?")
+                .setTitle("Delete?")
+                .setMessage("Remove \"" + modName + "\"?")
                 .setPositiveButton("Delete", (d, w) -> {
                     boolean deleted = (mod instanceof androidx.documentfile.provider.DocumentFile)
                         ? ((androidx.documentfile.provider.DocumentFile) mod).delete()
                         : ((java.io.File) mod).delete();
                     if (deleted) {
                         refreshInstalled();
-                        Toast.makeText(this, "Mod removed", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Removed", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+        }, mod -> {
+            // Disable/enable - only for mods
+            if (!"mods".equals(currentInstalledType)) return;
+            if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                androidx.documentfile.provider.DocumentFile df = (androidx.documentfile.provider.DocumentFile) mod;
+                String name = df.getName();
+                if (name == null) return;
+                boolean isDisabled = name.endsWith(".disabled");
+                String newName = isDisabled ? name.replace(".disabled", "") : name + ".disabled";
+                df.renameTo(newName);
+                refreshInstalled();
+            } else if (mod instanceof java.io.File) {
+                java.io.File f = (java.io.File) mod;
+                String name = f.getName();
+                boolean isDisabled = name.endsWith(".disabled");
+                String newName = isDisabled ? name.replace(".disabled", "") : name + ".disabled";
+                f.renameTo(new java.io.File(f.getParent(), newName));
+                refreshInstalled();
+            }
         });
         installedRecycler.setLayoutManager(new LinearLayoutManager(this));
         installedRecycler.setAdapter(installedAdapter);
@@ -466,6 +485,8 @@ public class MainActivity extends AppCompatActivity {
         installedTabShaders.setTypeface(null, "shaderpacks".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         installedTabResourcepacks.setTextColor("resourcepacks".equals(currentInstalledType) ? 0xFFB87333 : 0xFF888888);
         installedTabResourcepacks.setTypeface(null, "resourcepacks".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        installedAdapter.setShowDisable("mods".equals(currentInstalledType));
+        installedAdapter.notifyDataSetChanged();
     }
 
     private void setupInstalledRecyclerDummy() {

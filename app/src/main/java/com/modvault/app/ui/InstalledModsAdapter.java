@@ -19,6 +19,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
     private final List<Object> mods;
     private final OnDeleteListener deleteListener;
     private final OnDisableListener disableListener;
+    private boolean showDisable = true;
 
     public InstalledModsAdapter(List<Object> mods, OnDeleteListener deleteListener) {
         this.mods = mods;
@@ -31,6 +32,8 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
         this.deleteListener = deleteListener;
         this.disableListener = disableListener;
     }
+
+    public void setShowDisable(boolean show) { this.showDisable = show; }
 
     @NonNull @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -67,6 +70,7 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
         holder.itemView.setAlpha(isDisabled ? 0.5f : 1f);
 
         // Disable/enable button
+        holder.btnDisable.setVisibility(showDisable ? android.view.View.VISIBLE : android.view.View.GONE);
         holder.btnDisable.setImageResource(isDisabled ? R.drawable.ic_play : R.drawable.ic_pause);
         holder.btnDisable.setColorFilter(isDisabled ? 0xFF4CAF50 : 0xFF888888);
         final Object modRef = mod;
