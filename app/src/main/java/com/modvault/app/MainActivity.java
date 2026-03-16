@@ -375,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
             }
             prefs.saveInstanceUri(uri);
             updateFolderLabel();
-            Toast.makeText(this, "Instance set: " + name, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Instance set: " + uri.toString(), Toast.LENGTH_LONG).show();
         });
         instancesRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
         instancesRecycler.setAdapter(instanceAdapter);
