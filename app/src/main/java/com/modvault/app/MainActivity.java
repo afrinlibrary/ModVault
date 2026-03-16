@@ -392,37 +392,9 @@ public class MainActivity extends AppCompatActivity {
         paths.add(ext + "/games/CopperLauncher/custom_instances");
         paths.add(ext + "/games/Amethyst/custom_instances");
         paths.add(ext + "/games/PojavLauncher/instances");
-        // Add user-defined custom scan paths - handle both SAF URIs and file paths
+        // Add user-defined custom scan paths (file paths only - SAF paths not supported for scanning)
         for (String customPath : prefs.getCustomScanPaths()) {
-            if (customPath.startsWith("content://")) {
-                // SAF URI - list children as instances
-                try {
-                    android.net.Uri uri = android.net.Uri.parse(customPath);
-                    androidx.documentfile.provider.DocumentFile dir =
-                        androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
-                    if (dir == null || !dir.exists()) continue;
-                    for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
-                        if (!child.isDirectory()) continue;
-                        String childName = child.getName() != null ? child.getName() : "Unknown";
-                        // Build a tree URI for the child using parent tree + child doc ID
-                        String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
-                        android.net.Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                            uri.getAuthority(), childDocId);
-                        // Verify it works with DocumentFile
-                        androidx.documentfile.provider.DocumentFile test =
-                            androidx.documentfile.provider.DocumentFile.fromTreeUri(MainActivity.this, childTreeUri);
-                        if (test == null || !test.exists()) {
-                            // Fallback: use parent tree URI with child name stored separately
-                            childTreeUri = uri; // use parent, name identifies instance
-                        }
-                        java.io.File safMarker = new java.io.File("/saf_instance/" + childTreeUri.toString() + "/" + childName);
-                        if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("ModVault", "Custom scan SAF error: " + e.getMessage());
-                }
-            } else {
-                // Regular file path
+            if (!customPath.startsWith("content://")) {
                 paths.add(customPath);
             }
         }
