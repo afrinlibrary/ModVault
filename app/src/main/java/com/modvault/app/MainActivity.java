@@ -70,7 +70,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView installedTabMods, installedTabShaders, installedTabResourcepacks, tvInstalledCount;
     private String currentInstalledType = "mods";
     private android.widget.CheckBox cbSelectAll;
-    private android.widget.Button btnCheckUpdates, btnUpdateAll;
+    private android.widget.Button btnCheckUpdates, btnUpdateAll, btnUpdateSelected;
+    private android.view.View layoutUpdateBar;
     private android.widget.CheckBox btnSnapshots;
     private boolean includeSnapshots = false;
     private RecyclerView instancesRecycler;
@@ -171,6 +172,8 @@ public class MainActivity extends AppCompatActivity {
         cbSelectAll = findViewById(R.id.cb_select_all);
         btnCheckUpdates = findViewById(R.id.btn_check_updates);
         btnUpdateAll = findViewById(R.id.btn_update_all);
+        btnUpdateSelected = findViewById(R.id.btn_update_selected);
+        layoutUpdateBar = findViewById(R.id.layout_update_bar);
     }
 
     private void setupBottomNav() {
@@ -477,6 +480,22 @@ public class MainActivity extends AppCompatActivity {
         // Check updates button
         btnCheckUpdates.setOnClickListener(v -> checkUpdates());
 
+        // Update selected button
+        btnUpdateSelected.setOnClickListener(v -> {
+            java.util.List<Object> toUpdate = installedAdapter.getSelectedMods();
+            if (toUpdate.isEmpty()) {
+                Toast.makeText(this, "No mods selected", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            for (Object mod : toUpdate) {
+                String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                    : ((java.io.File) mod).getName();
+                com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+            }
+        });
+
         // Update all button
         btnUpdateAll.setOnClickListener(v -> {
             java.util.List<Object> toUpdate = installedAdapter.getSelectedMods();
@@ -503,7 +522,6 @@ public class MainActivity extends AppCompatActivity {
         // Select all checkbox
         cbSelectAll.setOnCheckedChangeListener((btn, checked) -> {
             installedAdapter.setShowCheckboxes(checked);
-            cbSelectAll.setVisibility(View.VISIBLE);
         });
         installedRecycler.setLayoutManager(new LinearLayoutManager(this));
         installedRecycler.setAdapter(installedAdapter);
@@ -739,7 +757,6 @@ public class MainActivity extends AppCompatActivity {
         }
         btnCheckUpdates.setEnabled(false);
         btnCheckUpdates.setText("Checking...");
-        cbSelectAll.setVisibility(View.VISIBLE);
         installedAdapter.setShowCheckboxes(true);
 
         java.util.List<Object> modsCopy = new java.util.ArrayList<>(installedMods);
@@ -803,9 +820,10 @@ public class MainActivity extends AppCompatActivity {
             btnCheckUpdates.setEnabled(true);
             btnCheckUpdates.setText("Check Updates");
             if (updatesFound > 0) {
-                btnUpdateAll.setVisibility(View.VISIBLE);
+                layoutUpdateBar.setVisibility(View.VISIBLE);
                 Toast.makeText(this, updatesFound + " update(s) available!", Toast.LENGTH_SHORT).show();
             } else {
+                layoutUpdateBar.setVisibility(View.GONE);
                 Toast.makeText(this, "All mods up to date!", Toast.LENGTH_SHORT).show();
             }
         });
