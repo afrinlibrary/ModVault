@@ -96,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = new PrefManager(this);
         downloader = new ModDownloader(this);
-        downloader = new ModDownloader(this);
         requestStoragePermissionIfNeeded();
         initViews();
         setupBottomNav();
