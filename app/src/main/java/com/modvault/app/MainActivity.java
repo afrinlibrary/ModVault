@@ -395,18 +395,22 @@ public class MainActivity extends AppCompatActivity {
         // Add user-defined custom scan paths - handle both SAF URIs and file paths
         for (String customPath : prefs.getCustomScanPaths()) {
             if (customPath.startsWith("content://")) {
-                // SAF URI - add as a virtual instance entry using DocumentFile name
+                // SAF URI - list children as instances
                 try {
                     android.net.Uri uri = android.net.Uri.parse(customPath);
                     androidx.documentfile.provider.DocumentFile dir =
                         androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
                     if (dir == null || !dir.exists()) continue;
-                    // Create a dummy File that represents this SAF instance
-                    // Store the URI so InstanceAdapter can use it
-                    String name = dir.getName() != null ? dir.getName() : "Unknown";
-                    // We use a special marker path so we can identify SAF instances
-                    java.io.File safMarker = new java.io.File("/saf_instance/" + customPath + "/" + name);
-                    if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
+                    for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
+                        if (!child.isDirectory()) continue;
+                        String childName = child.getName() != null ? child.getName() : "Unknown";
+                        String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
+                        android.net.Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                            uri.getAuthority(), childDocId);
+                        // Use SAF marker so InstanceAdapter can handle it
+                        java.io.File safMarker = new java.io.File("/saf_instance/" + childTreeUri.toString() + "/" + childName);
+                        if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
+                    }
                 } catch (Exception e) {
                     android.util.Log.e("ModVault", "Custom scan SAF error: " + e.getMessage());
                 }
@@ -1059,48 +1063,11 @@ public class MainActivity extends AppCompatActivity {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            // Scan the picked folder for instances using DocumentFile
-            androidx.documentfile.provider.DocumentFile dir =
-                androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
-            if (dir != null && dir.exists()) {
-                int found = 0;
-                // Check if picked folder itself is an instance
-                androidx.documentfile.provider.DocumentFile modsDir = dir.findFile("mods");
-                if (modsDir != null && modsDir.isDirectory()) {
-                    // It's a single instance - save its URI directly
-                    prefs.saveInstanceUri(uri);
-                    updateFolderLabel();
-                    refreshSavedPaths();
-                    Toast.makeText(this, "Instance found and set: " + dir.getName(), Toast.LENGTH_SHORT).show();
-                    scanForInstances();
-                    return;
-                }
-                // It's a parent folder - list children as instances
-                for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
-                    if (child.isDirectory()) {
-                        androidx.documentfile.provider.DocumentFile childMods = child.findFile("mods");
-                        if (childMods != null && childMods.isDirectory()) {
-                            // Build child URI from tree
-                            String treeId = android.provider.DocumentsContract.getTreeDocumentId(uri);
-                            String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
-                            Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                                uri.getAuthority(), childDocId);
-                            prefs.addCustomScanPath(childTreeUri.toString());
-                            found++;
-                        }
-                    }
-                }
-                if (found > 0) {
-                    refreshCustomPaths();
-                    scanForInstances();
-                    Toast.makeText(this, found + " instance(s) found!", Toast.LENGTH_SHORT).show();
-                } else {
-                    // Save the URI as a scan path anyway
-                    prefs.addCustomScanPath(uri.toString());
-                    refreshCustomPaths();
-                    Toast.makeText(this, "Path saved. No instances found inside.", Toast.LENGTH_LONG).show();
-                }
-            }
+            // Save the URI as a custom scan path (parent folder containing instances)
+            prefs.addCustomScanPath(uri.toString());
+            refreshCustomPaths();
+            scanForInstances();
+            Toast.makeText(this, "Scan path added!", Toast.LENGTH_SHORT).show();
             return;
         }
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
