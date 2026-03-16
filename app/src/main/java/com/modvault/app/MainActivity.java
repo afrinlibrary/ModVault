@@ -1041,6 +1041,8 @@ public class MainActivity extends AppCompatActivity {
     private String getRealPathFromUri(Uri uri) {
         try {
             String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+            // Decode URL encoding
+            docId = java.net.URLDecoder.decode(docId, "UTF-8");
             String[] split = docId.split(":");
             if (split.length >= 2) {
                 String type = split[0];
