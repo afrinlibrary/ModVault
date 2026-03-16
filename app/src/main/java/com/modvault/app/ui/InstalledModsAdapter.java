@@ -1,9 +1,9 @@
 package com.modvault.app.ui;
 
-import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -11,33 +11,49 @@ import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.RecyclerView;
 import com.modvault.app.R;
 import com.modvault.app.utils.ModIconLoader;
+import com.modvault.app.utils.ModMetadata;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdapter.ViewHolder> {
+
     public interface OnDeleteListener { void onDelete(Object mod); }
     public interface OnDisableListener { void onDisable(Object mod); }
+    public interface OnUpdateListener { void onUpdate(Object mod, ModMetadata meta); }
 
     private final List<Object> mods;
     private final OnDeleteListener deleteListener;
     private final OnDisableListener disableListener;
+    private final OnUpdateListener updateListener;
     private boolean showDisable = true;
+    private boolean showCheckboxes = false;
     private String currentType = "mods";
 
-    public InstalledModsAdapter(List<Object> mods, OnDeleteListener deleteListener) {
-        this.mods = mods;
-        this.deleteListener = deleteListener;
-        this.disableListener = null;
-    }
+    // Cache metadata per filename
+    private final Map<String, ModMetadata> metaCache = new HashMap<>();
+    // Track selected items
+    private final List<Object> selectedMods = new ArrayList<>();
 
-    public InstalledModsAdapter(List<Object> mods, OnDeleteListener deleteListener, OnDisableListener disableListener) {
+    public InstalledModsAdapter(List<Object> mods, OnDeleteListener deleteListener,
+                                 OnDisableListener disableListener, OnUpdateListener updateListener) {
         this.mods = mods;
         this.deleteListener = deleteListener;
         this.disableListener = disableListener;
+        this.updateListener = updateListener;
     }
 
     public void setShowDisable(boolean show) { this.showDisable = show; }
     public void setCurrentType(String type) { this.currentType = type; }
+    public void setShowCheckboxes(boolean show) { this.showCheckboxes = show; selectedMods.clear(); notifyDataSetChanged(); }
+    public List<Object> getSelectedMods() { return new ArrayList<>(selectedMods); }
+    public void updateMetaCache(String filename, ModMetadata meta) {
+        metaCache.put(filename, meta);
+        notifyDataSetChanged();
+    }
+    public Map<String, ModMetadata> getMetaCache() { return metaCache; }
 
     @NonNull @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -61,58 +77,63 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
             size = f.length();
         }
 
-        // Load icon - set placeholder first to prevent swapping during scroll
-        if (holder.icon != null) {
-            holder.icon.setImageResource(R.drawable.ic_mod_default);
-            holder.icon.setTag(name); // tag with filename to detect recycled views
-            ModIconLoader.FileType fileType = getFileType();
-            final String tagName = name;
-            final android.widget.ImageView iconView = holder.icon;
-            if (mod instanceof DocumentFile) {
-                ModIconLoader.load(iconView.getContext(), (DocumentFile) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
-                    @Override public void setImageBitmap(android.graphics.Bitmap bm) {
-                        if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm);
-                    }
-                    @Override public void setImageResource(int res) {
-                        if (tagName.equals(iconView.getTag())) iconView.setImageResource(res);
-                    }
-                });
-            } else if (mod instanceof File) {
-                ModIconLoader.load(iconView.getContext(), (File) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
-                    @Override public void setImageBitmap(android.graphics.Bitmap bm) {
-                        if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm);
-                    }
-                    @Override public void setImageResource(int res) {
-                        if (tagName.equals(iconView.getTag())) iconView.setImageResource(res);
-                    }
-                });
-            }
+        // Checkbox
+        holder.checkbox.setVisibility(showCheckboxes ? View.VISIBLE : View.GONE);
+        final Object modRef = mod;
+        final String modName = name;
+        holder.checkbox.setOnCheckedChangeListener(null);
+        holder.checkbox.setChecked(selectedMods.contains(mod));
+        holder.checkbox.setOnCheckedChangeListener((btn, checked) -> {
+            if (checked) { if (!selectedMods.contains(modRef)) selectedMods.add(modRef); }
+            else selectedMods.remove(modRef);
+        });
+
+        // Icon
+        holder.icon.setImageResource(R.drawable.ic_mod_default);
+        holder.icon.setTag(name);
+        ModIconLoader.FileType fileType = getFileType();
+        final String tagName = name;
+        final android.widget.ImageView iconView = holder.icon;
+        if (mod instanceof DocumentFile) {
+            ModIconLoader.load(iconView.getContext(), (DocumentFile) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
+                public void setImageBitmap(android.graphics.Bitmap bm) { if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm); }
+                public void setImageResource(int res) { if (tagName.equals(iconView.getTag())) iconView.setImageResource(res); }
+            });
+        } else if (mod instanceof File) {
+            ModIconLoader.load(iconView.getContext(), (File) mod, fileType, new android.widget.ImageView(iconView.getContext()) {
+                public void setImageBitmap(android.graphics.Bitmap bm) { if (tagName.equals(iconView.getTag())) iconView.setImageBitmap(bm); }
+                public void setImageResource(int res) { if (tagName.equals(iconView.getTag())) iconView.setImageResource(res); }
+            });
         }
+
         holder.name.setText(name);
         holder.size.setText(formatSize(size));
 
-        // Type badge
         boolean isDisabled = name.endsWith(".disabled");
         String ext = isDisabled ? ".disabled" : name.endsWith(".jar") ? ".jar" : ".zip";
         holder.typeBadge.setText(ext);
         holder.typeBadge.setTextColor(isDisabled ? 0xFF888888 : 0xFF2D7D46);
-
-        // Dim disabled mods
         holder.itemView.setAlpha(isDisabled ? 0.5f : 1f);
 
-        // Disable/enable button
-        holder.btnDisable.setVisibility(showDisable ? android.view.View.VISIBLE : android.view.View.GONE);
+        // Update badge
+        ModMetadata meta = metaCache.get(name);
+        if (meta != null && meta.hasUpdate) {
+            holder.updateBadge.setVisibility(View.VISIBLE);
+            holder.btnUpdate.setVisibility(View.VISIBLE);
+            holder.btnUpdate.setOnClickListener(v -> { if (updateListener != null) updateListener.onUpdate(modRef, meta); });
+        } else {
+            holder.updateBadge.setVisibility(View.GONE);
+            holder.btnUpdate.setVisibility(View.GONE);
+        }
+
+        // Disable button
+        holder.btnDisable.setVisibility(showDisable ? View.VISIBLE : View.GONE);
         holder.btnDisable.setImageResource(isDisabled ? R.drawable.ic_play : R.drawable.ic_pause);
         holder.btnDisable.setColorFilter(isDisabled ? 0xFF4CAF50 : 0xFF888888);
-        final Object modRef = mod;
-        holder.btnDisable.setOnClickListener(v -> {
-            if (disableListener != null) disableListener.onDisable(modRef);
-        });
+        holder.btnDisable.setOnClickListener(v -> { if (disableListener != null) disableListener.onDisable(modRef); });
 
         holder.btnDelete.setOnClickListener(v -> deleteListener.onDelete(modRef));
     }
-
-    @Override public int getItemCount() { return mods.size(); }
 
     private ModIconLoader.FileType getFileType() {
         if ("shaderpacks".equals(currentType)) return ModIconLoader.FileType.SHADER;
@@ -120,23 +141,29 @@ public class InstalledModsAdapter extends RecyclerView.Adapter<InstalledModsAdap
         return ModIconLoader.FileType.MOD;
     }
 
+    @Override public int getItemCount() { return mods.size(); }
+
     private String formatSize(long bytes) {
         if (bytes >= 1024 * 1024) return String.format("%.1f MB", bytes / (1024f * 1024f));
         return String.format("%.1f KB", bytes / 1024f);
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
+        CheckBox checkbox;
         android.widget.ImageView icon;
-        TextView name, size, typeBadge;
-        ImageButton btnDelete, btnDisable;
+        TextView name, size, typeBadge, updateBadge;
+        ImageButton btnDelete, btnDisable, btnUpdate;
         ViewHolder(View v) {
             super(v);
+            checkbox = v.findViewById(R.id.mod_checkbox);
+            icon = v.findViewById(R.id.mod_icon);
             name = v.findViewById(R.id.mod_filename);
             size = v.findViewById(R.id.mod_size);
             typeBadge = v.findViewById(R.id.mod_type_badge);
-            icon = v.findViewById(R.id.mod_icon);
+            updateBadge = v.findViewById(R.id.mod_update_badge);
             btnDelete = v.findViewById(R.id.btn_delete_mod);
             btnDisable = v.findViewById(R.id.btn_disable_mod);
+            btnUpdate = v.findViewById(R.id.btn_update_mod);
         }
     }
 }

@@ -9,6 +9,15 @@
     android:padding="12dp"
     android:gravity="center_vertical">
 
+    <!-- Checkbox for bulk select -->
+    <CheckBox
+        android:id="@+id/mod_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:buttonTint="#B87333"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone"/>
+
     <!-- Mod Icon -->
     <ImageView
         android:id="@+id/mod_icon"
@@ -55,8 +64,32 @@
                 android:layout_height="wrap_content"
                 android:textColor="#888"
                 android:textSize="11sp"/>
+            <TextView
+                android:id="@+id/mod_update_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Update"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:background="#B87333"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"/>
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Update button -->
+    <ImageButton
+        android:id="@+id/btn_update_mod"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_update"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:tint="#B87333"
+        android:contentDescription="Update mod"
+        android:visibility="gone"
+        android:layout_marginEnd="2dp"/>
 
     <!-- Disable button -->
     <ImageButton
@@ -67,7 +100,7 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:tint="#888888"
         android:contentDescription="Disable mod"
-        android:layout_marginEnd="4dp"/>
+        android:layout_marginEnd="2dp"/>
 
     <!-- Delete button -->
     <ImageButton

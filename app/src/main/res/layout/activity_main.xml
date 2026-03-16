@@ -273,15 +273,49 @@
                 android:layout_width="match_parent"
                 android:layout_height="2dp"
                 android:background="#B87333"/>
-            <TextView
-                android:id="@+id/tv_installed_count"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="0 files"
-                android:textColor="#888888"
-                android:textSize="12sp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"/>
+                android:paddingVertical="6dp">
+                <CheckBox
+                    android:id="@+id/cb_select_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select All"
+                    android:textColor="#AAAAAA"
+                    android:textSize="12sp"
+                    android:buttonTint="#B87333"
+                    android:visibility="gone"/>
+                <TextView
+                    android:id="@+id/tv_installed_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0 files"
+                    android:textColor="#888888"
+                    android:textSize="12sp"/>
+                <Button
+                    android:id="@+id/btn_check_updates"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Check Updates"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:backgroundTint="#1A120A"
+                    android:layout_marginEnd="6dp"/>
+                <Button
+                    android:id="@+id/btn_update_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Update All"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:backgroundTint="#B87333"
+                    android:visibility="gone"/>
+            </LinearLayout>
                 android:padding="16dp"/>
 
             <androidx.recyclerview.widget.RecyclerView

@@ -69,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     private Button btnTypeMods, btnTypeResourcepack, btnTypeShader;
     private TextView installedTabMods, installedTabShaders, installedTabResourcepacks, tvInstalledCount;
     private String currentInstalledType = "mods";
+    private android.widget.CheckBox cbSelectAll;
+    private android.widget.Button btnCheckUpdates, btnUpdateAll;
     private android.widget.CheckBox btnSnapshots;
     private boolean includeSnapshots = false;
     private RecyclerView instancesRecycler;
@@ -166,6 +168,9 @@ public class MainActivity extends AppCompatActivity {
         installedTabShaders = findViewById(R.id.installed_tab_shaders);
         installedTabResourcepacks = findViewById(R.id.installed_tab_resourcepacks);
         tvInstalledCount = findViewById(R.id.tv_installed_count);
+        cbSelectAll = findViewById(R.id.cb_select_all);
+        btnCheckUpdates = findViewById(R.id.btn_check_updates);
+        btnUpdateAll = findViewById(R.id.btn_update_all);
     }
 
     private void setupBottomNav() {
@@ -436,43 +441,69 @@ public class MainActivity extends AppCompatActivity {
         installedTabShaders.setOnClickListener(v -> { currentInstalledType = "shaderpacks"; switchInstalledTab(); refreshInstalled(); });
         installedTabResourcepacks.setOnClickListener(v -> { currentInstalledType = "resourcepacks"; switchInstalledTab(); refreshInstalled(); });
 
-        installedAdapter = new InstalledModsAdapter(installedMods, mod -> {
-            String modName = (mod instanceof androidx.documentfile.provider.DocumentFile)
-                ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
-                : ((java.io.File) mod).getName();
-            new AlertDialog.Builder(this)
-                .setTitle("Delete?")
-                .setMessage("Remove \"" + modName + "\"?")
-                .setPositiveButton("Delete", (d, w) -> {
-                    boolean deleted = (mod instanceof androidx.documentfile.provider.DocumentFile)
-                        ? ((androidx.documentfile.provider.DocumentFile) mod).delete()
-                        : ((java.io.File) mod).delete();
-                    if (deleted) {
-                        refreshInstalled();
-                        Toast.makeText(this, "Removed", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        }, mod -> {
-            // Disable/enable - only for mods
-            if (!"mods".equals(currentInstalledType)) return;
-            if (mod instanceof androidx.documentfile.provider.DocumentFile) {
-                androidx.documentfile.provider.DocumentFile df = (androidx.documentfile.provider.DocumentFile) mod;
-                String name = df.getName();
-                if (name == null) return;
-                boolean isDisabled = name.endsWith(".disabled");
-                String newName = isDisabled ? name.replace(".disabled", "") : name + ".disabled";
-                df.renameTo(newName);
-                refreshInstalled();
-            } else if (mod instanceof java.io.File) {
-                java.io.File f = (java.io.File) mod;
-                String name = f.getName();
-                boolean isDisabled = name.endsWith(".disabled");
-                String newName = isDisabled ? name.replace(".disabled", "") : name + ".disabled";
-                f.renameTo(new java.io.File(f.getParent(), newName));
-                refreshInstalled();
+        installedAdapter = new InstalledModsAdapter(installedMods,
+            mod -> {
+                String modName = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                    : ((java.io.File) mod).getName();
+                new AlertDialog.Builder(this)
+                    .setTitle("Delete?")
+                    .setMessage("Remove \"" + modName + "\"?")
+                    .setPositiveButton("Delete", (d, w) -> {
+                        boolean deleted = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                            ? ((androidx.documentfile.provider.DocumentFile) mod).delete()
+                            : ((java.io.File) mod).delete();
+                        if (deleted) { refreshInstalled(); Toast.makeText(this, "Removed", Toast.LENGTH_SHORT).show(); }
+                    })
+                    .setNegativeButton("Cancel", null).show();
+            },
+            mod -> {
+                if (!"mods".equals(currentInstalledType)) return;
+                if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                    androidx.documentfile.provider.DocumentFile df = (androidx.documentfile.provider.DocumentFile) mod;
+                    String name = df.getName(); if (name == null) return;
+                    df.renameTo(name.endsWith(".disabled") ? name.replace(".disabled", "") : name + ".disabled");
+                    refreshInstalled();
+                } else if (mod instanceof java.io.File) {
+                    java.io.File f = (java.io.File) mod;
+                    String name = f.getName();
+                    f.renameTo(new java.io.File(f.getParent(), name.endsWith(".disabled") ? name.replace(".disabled", "") : name + ".disabled"));
+                    refreshInstalled();
+                }
+            },
+            (mod, meta) -> performUpdate(mod, meta)
+        );
+
+        // Check updates button
+        btnCheckUpdates.setOnClickListener(v -> checkUpdates());
+
+        // Update all button
+        btnUpdateAll.setOnClickListener(v -> {
+            java.util.List<Object> toUpdate = installedAdapter.getSelectedMods();
+            if (toUpdate.isEmpty()) {
+                // Update all that have updates
+                for (Object mod : installedMods) {
+                    String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
+                    com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                    if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+                }
+            } else {
+                for (Object mod : toUpdate) {
+                    String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
+                    com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                    if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+                }
             }
+        });
+
+        // Select all checkbox
+        cbSelectAll.setOnCheckedChangeListener((btn, checked) -> {
+            installedAdapter.setShowCheckboxes(checked);
+            cbSelectAll.setVisibility(View.VISIBLE);
         });
         installedRecycler.setLayoutManager(new LinearLayoutManager(this));
         installedRecycler.setAdapter(installedAdapter);
@@ -696,6 +727,128 @@ public class MainActivity extends AppCompatActivity {
                 version.dependencies, getSelectedVersion(), getSelectedLoader(), callback);
         }
     }
+
+    private void checkUpdates() {
+        if (installedMods.isEmpty()) {
+            Toast.makeText(this, "No mods to check", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        btnCheckUpdates.setEnabled(false);
+        btnCheckUpdates.setText("Checking...");
+        cbSelectAll.setVisibility(View.VISIBLE);
+        installedAdapter.setShowCheckboxes(true);
+
+        final int[] pending = {installedMods.size()};
+        final int[] updatesFound = {0};
+
+        for (Object mod : new java.util.ArrayList<>(installedMods)) {
+            new Thread(() -> {
+                com.modvault.app.utils.ModMetadata meta = null;
+                if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                    meta = com.modvault.app.utils.ModMetadataParser.parse(this, (androidx.documentfile.provider.DocumentFile) mod);
+                } else if (mod instanceof java.io.File) {
+                    meta = com.modvault.app.utils.ModMetadataParser.parse((java.io.File) mod);
+                }
+
+                if (meta == null || meta.modId == null) {
+                    decrementPending(pending, updatesFound);
+                    return;
+                }
+
+                final com.modvault.app.utils.ModMetadata finalMeta = meta;
+                String fileName = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                    : ((java.io.File) mod).getName();
+
+                api.getVersions(finalMeta.modId,
+                    finalMeta.mcVersion != null ? finalMeta.mcVersion : "",
+                    finalMeta.loader != null ? finalMeta.loader : "",
+                    versions -> {
+                        if (versions != null && !versions.isEmpty()) {
+                            com.modvault.app.model.ModVersion latest = versions.get(0);
+                            if (latest.versionNumber != null && !latest.versionNumber.equals(finalMeta.version)) {
+                                finalMeta.hasUpdate = true;
+                                finalMeta.latestVersion = latest.versionNumber;
+                                com.modvault.app.model.ModVersion.VersionFile file = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
+                                if (file != null) { finalMeta.latestFileUrl = file.url; finalMeta.latestFileName = file.filename; }
+                                updatesFound[0]++;
+                            }
+                        }
+                        installedAdapter.updateMetaCache(fileName, finalMeta);
+                        decrementPending(pending, updatesFound);
+                    }, error -> decrementPending(pending, updatesFound));
+            }).start();
+        }
+    }
+
+    private void decrementPending(int[] pending, int[] updatesFound) {
+        pending[0]--;
+        if (pending[0] <= 0) {
+            handler.post(() -> {
+                btnCheckUpdates.setEnabled(true);
+                btnCheckUpdates.setText("Check Updates");
+                if (updatesFound[0] > 0) {
+                    btnUpdateAll.setVisibility(View.VISIBLE);
+                    Toast.makeText(this, updatesFound[0] + " update(s) available!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "All mods up to date!", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    private void performUpdate(Object mod, com.modvault.app.utils.ModMetadata meta) {
+        if (meta.latestFileUrl == null) return;
+        com.modvault.app.model.ModVersion.VersionFile file = new com.modvault.app.model.ModVersion.VersionFile();
+        file.url = meta.latestFileUrl;
+        file.filename = meta.latestFileName;
+        file.primary = true;
+
+        // Delete old file first
+        if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+            ((androidx.documentfile.provider.DocumentFile) mod).delete();
+        } else if (mod instanceof java.io.File) {
+            ((java.io.File) mod).delete();
+        }
+
+        // Download new
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+        progress.setTitle("Updating " + (meta.name != null ? meta.name : meta.modId));
+        progress.setMessage("Downloading " + meta.latestVersion + "...");
+        progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
+        progress.setMax(100);
+        progress.setCancelable(false);
+        progress.show();
+
+        com.modvault.app.utils.ModDownloader.DownloadCallback callback = new com.modvault.app.utils.ModDownloader.DownloadCallback() {
+            public void onProgress(String fileName, int percent) {
+                handler.post(() -> { progress.setMessage(fileName); progress.setProgress(percent); });
+            }
+            public void onSuccess(String fileName) {
+                handler.post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(MainActivity.this, "Updated to " + meta.latestVersion, Toast.LENGTH_SHORT).show();
+                    refreshInstalled();
+                });
+            }
+            public void onError(String error) {
+                handler.post(() -> { progress.dismiss(); Toast.makeText(MainActivity.this, "Update failed: " + error, Toast.LENGTH_LONG).show(); });
+            }
+        };
+
+        Uri instanceUri = prefs.getInstanceUri();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
+                && instanceUri != null && "content".equals(instanceUri.getScheme())) {
+            downloader.downloadMod(file, instanceUri, "mods", null, meta.mcVersion != null ? meta.mcVersion : "", meta.loader != null ? meta.loader : "", callback);
+        } else {
+            java.io.File instanceDir = getLegacyInstanceDir();
+            if (instanceDir == null) { progress.dismiss(); return; }
+            java.io.File modsDir = new java.io.File(instanceDir, "mods");
+            if (!modsDir.exists()) modsDir.mkdirs();
+            downloader.downloadMod(file, modsDir, null, meta.mcVersion != null ? meta.mcVersion : "", meta.loader != null ? meta.loader : "", callback);
+        }
+    }
+
     private void refreshInstalled() {
         installedMods.clear();
         Uri instanceUri = prefs.getInstanceUri();
