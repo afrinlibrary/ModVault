@@ -729,6 +729,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkUpdates() {
+        if (!"mods".equals(currentInstalledType)) {
+            Toast.makeText(this, "Updates only available for mods", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (installedMods.isEmpty()) {
             Toast.makeText(this, "No mods to check", Toast.LENGTH_SHORT).show();
             return;
@@ -738,63 +742,73 @@ public class MainActivity extends AppCompatActivity {
         cbSelectAll.setVisibility(View.VISIBLE);
         installedAdapter.setShowCheckboxes(true);
 
-        final int[] pending = {installedMods.size()};
-        final int[] updatesFound = {0};
+        java.util.List<Object> modsCopy = new java.util.ArrayList<>(installedMods);
+        java.util.concurrent.atomic.AtomicInteger pending = new java.util.concurrent.atomic.AtomicInteger(modsCopy.size());
+        java.util.concurrent.atomic.AtomicInteger updatesFound = new java.util.concurrent.atomic.AtomicInteger(0);
 
-        for (Object mod : new java.util.ArrayList<>(installedMods)) {
+        for (Object mod : modsCopy) {
             new Thread(() -> {
-                com.modvault.app.utils.ModMetadata meta = null;
-                if (mod instanceof androidx.documentfile.provider.DocumentFile) {
-                    meta = com.modvault.app.utils.ModMetadataParser.parse(this, (androidx.documentfile.provider.DocumentFile) mod);
-                } else if (mod instanceof java.io.File) {
-                    meta = com.modvault.app.utils.ModMetadataParser.parse((java.io.File) mod);
-                }
+                try {
+                    com.modvault.app.utils.ModMetadata meta = null;
+                    if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                        meta = com.modvault.app.utils.ModMetadataParser.parse(this, (androidx.documentfile.provider.DocumentFile) mod);
+                    } else if (mod instanceof java.io.File) {
+                        meta = com.modvault.app.utils.ModMetadataParser.parse((java.io.File) mod);
+                    }
 
-                if (meta == null || meta.modId == null) {
-                    decrementPending(pending, updatesFound);
-                    return;
-                }
+                    if (meta == null || meta.modId == null) {
+                        if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        return;
+                    }
 
-                final com.modvault.app.utils.ModMetadata finalMeta = meta;
-                String fileName = (mod instanceof androidx.documentfile.provider.DocumentFile)
-                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
-                    : ((java.io.File) mod).getName();
+                    final com.modvault.app.utils.ModMetadata finalMeta = meta;
+                    String fileName = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
 
-                api.getVersions(finalMeta.modId,
-                    finalMeta.mcVersion != null ? finalMeta.mcVersion : "",
-                    finalMeta.loader != null ? finalMeta.loader : "",
-                    versions -> {
-                        if (versions != null && !versions.isEmpty()) {
-                            com.modvault.app.model.ModVersion latest = versions.get(0);
-                            if (latest.versionNumber != null && !latest.versionNumber.equals(finalMeta.version)) {
-                                finalMeta.hasUpdate = true;
-                                finalMeta.latestVersion = latest.versionNumber;
-                                com.modvault.app.model.ModVersion.VersionFile file = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
-                                if (file != null) { finalMeta.latestFileUrl = file.url; finalMeta.latestFileName = file.filename; }
-                                updatesFound[0]++;
+                    api.getVersions(finalMeta.modId,
+                        finalMeta.mcVersion != null ? finalMeta.mcVersion : "",
+                        finalMeta.loader != null ? finalMeta.loader : "",
+                        versions -> {
+                            try {
+                                if (versions != null && !versions.isEmpty()) {
+                                    com.modvault.app.model.ModVersion latest = versions.get(0);
+                                    if (latest.versionNumber != null && !latest.versionNumber.equals(finalMeta.version)) {
+                                        finalMeta.hasUpdate = true;
+                                        finalMeta.latestVersion = latest.versionNumber;
+                                        com.modvault.app.model.ModVersion.VersionFile f = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
+                                        if (f != null) { finalMeta.latestFileUrl = f.url; finalMeta.latestFileName = f.filename; }
+                                        updatesFound.incrementAndGet();
+                                    }
+                                }
+                                handler.post(() -> installedAdapter.updateMetaCache(fileName, finalMeta));
+                            } catch (Exception e) {
+                                android.util.Log.e("ModVault", "checkUpdates version error: " + e.getMessage());
                             }
-                        }
-                        installedAdapter.updateMetaCache(fileName, finalMeta);
-                        decrementPending(pending, updatesFound);
-                    }, error -> decrementPending(pending, updatesFound));
+                            if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        },
+                        error -> {
+                            if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        });
+                } catch (Exception e) {
+                    android.util.Log.e("ModVault", "checkUpdates error: " + e.getMessage());
+                    if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                }
             }).start();
         }
     }
 
-    private void decrementPending(int[] pending, int[] updatesFound) {
-        pending[0]--;
-        if (pending[0] <= 0) {
-            handler.post(() -> {
-                btnCheckUpdates.setEnabled(true);
-                btnCheckUpdates.setText("Check Updates");
-                if (updatesFound[0] > 0) {
-                    btnUpdateAll.setVisibility(View.VISIBLE);
-                    Toast.makeText(this, updatesFound[0] + " update(s) available!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "All mods up to date!", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
+    private void finishCheckUpdates(int updatesFound) {
+        handler.post(() -> {
+            btnCheckUpdates.setEnabled(true);
+            btnCheckUpdates.setText("Check Updates");
+            if (updatesFound > 0) {
+                btnUpdateAll.setVisibility(View.VISIBLE);
+                Toast.makeText(this, updatesFound + " update(s) available!", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "All mods up to date!", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void performUpdate(Object mod, com.modvault.app.utils.ModMetadata meta) {
