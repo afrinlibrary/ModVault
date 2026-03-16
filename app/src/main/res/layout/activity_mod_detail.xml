@@ -34,231 +34,155 @@
             android:ellipsize="end"/>
     </LinearLayout>
 
-    <!-- Header always visible -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="#0D0D0D">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="12dp">
-            <ImageView
-                android:id="@+id/detail_icon"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:scaleType="centerCrop"
-                android:background="@drawable/bg_icon_placeholder"
-                android:layout_marginEnd="16dp"/>
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_vertical">
-                <TextView
-                    android:id="@+id/detail_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
-                    android:textSize="22sp"
-                    android:textStyle="bold"/>
-                <TextView
-                    android:id="@+id/detail_type_badge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Mod"
-                    android:textColor="#B87333"
-                    android:textSize="12sp"
-                    android:background="@drawable/bg_mod_card"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="2dp"
-                    android:layout_marginTop="6dp"/>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Stats -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:background="@drawable/bg_mod_card"
-                android:padding="10dp"
-                android:layout_marginEnd="6dp">
-                <TextView
-                    android:id="@+id/detail_downloads"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Downloads"
-                    android:textColor="#888888"
-                    android:textSize="10sp"/>
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:background="@drawable/bg_mod_card"
-                android:padding="10dp">
-                <TextView
-                    android:id="@+id/detail_followers"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Followers"
-                    android:textColor="#888888"
-                    android:textSize="10sp"/>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Categories -->
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/detail_categories"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-    </LinearLayout>
-
-    <!-- Tab bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:orientation="horizontal"
-        android:background="#1A120A">
-        <TextView
-            android:id="@+id/tab_description"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Description"
-            android:textColor="#B87333"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:gravity="center"/>
-        <TextView
-            android:id="@+id/tab_gallery"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Gallery"
-            android:textColor="#888888"
-            android:textSize="13sp"
-            android:gravity="center"/>
-        <TextView
-            android:id="@+id/tab_versions"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Versions"
-            android:textColor="#888888"
-            android:textSize="13sp"
-            android:gravity="center"/>
-    </LinearLayout>
-
-    <!-- Tab indicator -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="#B87333"/>
-
-    <!-- Tab content -->
-    <FrameLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Description -->
-        <ScrollView
-            android:id="@+id/content_description"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="visible">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-                <TextView
-                    android:id="@+id/detail_description"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#CCCCCC"
-                    android:textSize="13sp"
-                    android:lineSpacingMultiplier="1.4"/>
-            </LinearLayout>
-        </ScrollView>
-
-        <!-- Gallery -->
-        <ScrollView
-            android:id="@+id/content_gallery"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/gallery_recycler"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"/>
-                <TextView
-                    android:id="@+id/tv_no_gallery"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="No gallery images available"
-                    android:textColor="#555555"
-                    android:textSize="13sp"
-                    android:gravity="center"
-                    android:padding="32dp"
-                    android:visibility="gone"/>
-            </LinearLayout>
-        </ScrollView>
-
-        <!-- Versions -->
         <LinearLayout
-            android:id="@+id/content_versions"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone"
             android:padding="16dp">
+
+            <!-- Header: icon + title + type -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+                <ImageView
+                    android:id="@+id/detail_icon"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_icon_placeholder"
+                    android:layout_marginEnd="16dp"/>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/detail_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/detail_type_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mod"
+                        android:textColor="#B87333"
+                        android:textSize="12sp"
+                        android:background="@drawable/bg_mod_card"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginTop="6dp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Description -->
+            <TextView
+                android:id="@+id/detail_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#AAAAAA"
+                android:textSize="13sp"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Stats row: downloads, followers -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/bg_mod_card"
+                    android:padding="12dp"
+                    android:layout_marginEnd="8dp">
+                    <TextView
+                        android:id="@+id/detail_downloads"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Downloads"
+                        android:textColor="#888888"
+                        android:textSize="11sp"/>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/bg_mod_card"
+                    android:padding="12dp">
+                    <TextView
+                        android:id="@+id/detail_followers"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Followers"
+                        android:textColor="#888888"
+                        android:textSize="11sp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Categories -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/detail_categories"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#333"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Versions list -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Versions"
+                android:textColor="#BBBBBB"
+                android:textSize="13sp"
+                android:layout_marginBottom="8dp"/>
+
             <ProgressBar
                 android:id="@+id/detail_versions_progress"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:visibility="gone"/>
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/detail_versions_recycler"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="true"/>
-        </LinearLayout>
 
-    </FrameLayout>
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>
