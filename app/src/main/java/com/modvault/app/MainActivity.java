@@ -376,25 +376,29 @@ public class MainActivity extends AppCompatActivity {
 
     private void scanForInstances() {
         instanceList.clear();
-        // Common launcher paths
-        String[] basePaths = {
-            android.os.Environment.getExternalStorageDirectory() + "/games/PojavLauncher/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/CopperLauncher/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/Amethyst/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/PojavLauncher/instances",
-        };
-        for (String path : basePaths) {
+        String ext = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+        java.util.List<String> paths = new java.util.ArrayList<>();
+        paths.add(ext + "/games/PojavLauncher/custom_instances");
+        paths.add(ext + "/games/CopperLauncher/custom_instances");
+        paths.add(ext + "/games/Amethyst/custom_instances");
+        paths.add(ext + "/games/PojavLauncher/instances");
+        // Add user-defined custom scan paths
+        paths.addAll(prefs.getCustomScanPaths());
+        for (String path : paths) {
             java.io.File dir = new java.io.File(path);
             if (dir.exists() && dir.isDirectory()) {
                 java.io.File[] instances = dir.listFiles();
                 if (instances != null) {
                     for (java.io.File f : instances) {
-                        if (f.isDirectory()) instanceList.add(f);
+                        if (f.isDirectory() && !instanceList.contains(f)) instanceList.add(f);
                     }
                 }
             }
         }
         instanceAdapter.notifyDataSetChanged();
+        if (instanceList.isEmpty()) {
+            Toast.makeText(this, "No instances found. Add custom scan paths in Settings or pick manually.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void setupSourceToggle() {
