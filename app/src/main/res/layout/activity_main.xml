@@ -235,14 +235,53 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:visibility="gone">
-
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:background="#1A120A">
+                <TextView
+                    android:id="@+id/installed_tab_mods"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Mods"
+                    android:textColor="#B87333"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:gravity="center"/>
+                <TextView
+                    android:id="@+id/installed_tab_shaders"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Shaders"
+                    android:textColor="#888888"
+                    android:textSize="13sp"
+                    android:gravity="center"/>
+                <TextView
+                    android:id="@+id/installed_tab_resourcepacks"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Res Packs"
+                    android:textColor="#888888"
+                    android:textSize="13sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="#B87333"/>
             <TextView
+                android:id="@+id/tv_installed_count"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Installed Mods"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold"
+                android:text="0 files"
+                android:textColor="#888888"
+                android:textSize="12sp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"/>
                 android:padding="16dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
