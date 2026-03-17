@@ -326,56 +326,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private androidx.recyclerview.widget.RecyclerView customPathsRecycler;
-    private com.modvault.app.ui.CustomScanPathsAdapter customPathsAdapter;
-    private java.util.List<String> customScanPaths = new java.util.ArrayList<>();
 
-    private void setupCustomScanPaths() {
-        customPathsRecycler = findViewById(R.id.custom_paths_recycler);
-        customScanPaths = prefs.getCustomScanPaths();
-        customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, path -> {
-            prefs.removeCustomScanPath(path);
-            customScanPaths = prefs.getCustomScanPaths();
-            customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, p -> {
-                prefs.removeCustomScanPath(p);
-                refreshCustomPaths();
-            });
-            customPathsRecycler.setAdapter(customPathsAdapter);
-        });
-        customPathsRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
-        customPathsRecycler.setAdapter(customPathsAdapter);
-
-        findViewById(R.id.btn_add_custom_path).setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            startActivityForResult(intent, 4001);
-        });
-    }
-
-    private void refreshCustomPaths() {
-        customScanPaths = prefs.getCustomScanPaths();
-        customPathsAdapter = new com.modvault.app.ui.CustomScanPathsAdapter(customScanPaths, path -> {
-            prefs.removeCustomScanPath(path);
-            refreshCustomPaths();
-        });
-        customPathsRecycler.setAdapter(customPathsAdapter);
-    }
 
     private void setupInstances() {
         instanceAdapter = new InstanceAdapter(this, instanceList, (instanceFolder, name) -> {
-            android.net.Uri uri;
-            String absPath = instanceFolder.getAbsolutePath();
-            if (absPath.startsWith("/saf_instance/")) {
-                // Extract SAF URI from marker path
-                String withoutPrefix = absPath.substring("/saf_instance/".length());
-                int lastSlash = withoutPrefix.lastIndexOf("/");
-                String uriStr = withoutPrefix.substring(0, lastSlash);
-                uri = android.net.Uri.parse(uriStr);
-            } else {
-                uri = android.net.Uri.fromFile(instanceFolder);
-            }
+            android.net.Uri uri = android.net.Uri.fromFile(instanceFolder);
             prefs.saveInstanceUri(uri);
             updateFolderLabel();
-            Toast.makeText(this, "Instance set: " + uri.toString(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Instance set: " + name, Toast.LENGTH_SHORT).show();
         });
         instancesRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
         instancesRecycler.setAdapter(instanceAdapter);
@@ -387,49 +345,41 @@ public class MainActivity extends AppCompatActivity {
     private void scanForInstances() {
         instanceList.clear();
         String ext = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
-        java.util.List<String> paths = new java.util.ArrayList<>();
-        paths.add(ext + "/games/PojavLauncher/custom_instances");
-        paths.add(ext + "/games/CopperLauncher/custom_instances");
-        paths.add(ext + "/games/Amethyst/custom_instances");
-        paths.add(ext + "/games/PojavLauncher/instances");
-        // Add user-defined custom scan paths
-        for (String customPath : prefs.getCustomScanPaths()) {
-            if (customPath.startsWith("content://")) {
-                // SAF path - use DocumentFile to list children
-                try {
-                    android.net.Uri uri = android.net.Uri.parse(customPath);
-                    androidx.documentfile.provider.DocumentFile dir =
-                        androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri);
-                    if (dir == null || !dir.exists()) continue;
-                    for (androidx.documentfile.provider.DocumentFile child : dir.listFiles()) {
-                        if (!child.isDirectory()) continue;
-                        String childName = child.getName() != null ? child.getName() : "Unknown";
-                        String childDocId = android.provider.DocumentsContract.getDocumentId(child.getUri());
-                        android.net.Uri childTreeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                            uri.getAuthority(), childDocId);
-                        java.io.File safMarker = new java.io.File("/saf_instance/" + childTreeUri + "/" + childName);
-                        if (!instanceList.contains(safMarker)) instanceList.add(safMarker);
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("ModVault", "SAF scan error: " + e.getMessage());
-                }
-            } else {
-                paths.add(customPath);
-            }
-        }
-        for (String path : paths) {
+        String[] basePaths = {
+            ext + "/games/PojavLauncher/custom_instances",
+            ext + "/games/CopperLauncher/custom_instances",
+            ext + "/games/Amethyst/custom_instances",
+            ext + "/games/PojavLauncher/instances",
+        };
+        for (String path : basePaths) {
             java.io.File dir = new java.io.File(path);
-            if (!dir.exists() || !dir.isDirectory()) continue;
-            java.io.File[] children = dir.listFiles();
-            if (children != null) {
-                for (java.io.File f : children) {
-                    if (f.isDirectory() && !instanceList.contains(f)) instanceList.add(f);
+            if (dir.exists() && dir.isDirectory()) {
+                java.io.File[] instances = dir.listFiles();
+                if (instances != null) {
+                    for (java.io.File f : instances) {
+                        if (f.isDirectory()) instanceList.add(f);
+                    }
                 }
             }
         }
         instanceAdapter.notifyDataSetChanged();
         if (instanceList.isEmpty()) {
-            Toast.makeText(this, "No instances found. Add custom scan paths in Settings or pick manually.", Toast.LENGTH_LONG).show();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("No instances found")
+                    .setMessage("On Android 11+, launcher files in Android/data/ can\'t be accessed automatically.\n\nTap \'Browse\' to manually navigate to your launcher\'s custom_instances folder.")
+                    .setPositiveButton("Browse Android/data", (d, w) -> {
+                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                        intent.putExtra("android.provider.extra.INITIAL_URI",
+                            android.provider.DocumentsContract.buildDocumentUri(
+                                "com.android.externalstorage.documents", "primary:Android/data"));
+                        startActivityForResult(intent, REQUEST_FOLDER);
+                    })
+                    .setNegativeButton("Use Manual Picker", (d, w) -> btnChooseFolder.performClick())
+                    .show();
+            } else {
+                Toast.makeText(this, "No instances found. Choose folder manually.", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -599,7 +549,6 @@ public class MainActivity extends AppCompatActivity {
     private void setupSettings() {
         btnChooseFolder.setOnClickListener(v -> openFolderPicker());
         updateFolderLabel();
-        setupCustomScanPaths();
             refreshSavedPaths();
     }
 
@@ -1065,17 +1014,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 4001 && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            getContentResolver().takePersistableUriPermission(uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            // Save the URI as a custom scan path (parent folder containing instances)
-            prefs.addCustomScanPath(uri.toString());
-            refreshCustomPaths();
-            scanForInstances();
-            Toast.makeText(this, "Scan path added!", Toast.LENGTH_SHORT).show();
-            return;
-        }
+
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,
