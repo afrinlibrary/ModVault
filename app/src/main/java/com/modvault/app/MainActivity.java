@@ -1030,8 +1030,6 @@ public class MainActivity extends AppCompatActivity {
 
     return new java.io.File(path);
 }
-        return null;
-    }
 
     private java.io.File getTargetDirLegacy() {
         java.io.File instanceDir = getLegacyInstanceDir();
@@ -1059,12 +1057,6 @@ public class MainActivity extends AppCompatActivity {
 
     return path;
 }
-            }
-        } catch (Exception e) {
-            android.util.Log.e("ModVault", "getRealPathFromUri failed: " + e.getMessage());
-        }
-        return null;
-    }
 
     private void openFolderPicker() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
