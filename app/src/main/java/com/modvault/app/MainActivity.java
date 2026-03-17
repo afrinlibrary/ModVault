@@ -338,8 +338,10 @@ public class MainActivity extends AppCompatActivity {
         instancesRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
         instancesRecycler.setAdapter(instanceAdapter);
         btnScanInstances.setOnClickListener(v -> scanForInstances());
-        // Auto scan on open
-        scanForInstances();
+        // Auto scan on open - disabled on Android 11+ (no access to Android/data/)
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            scanForInstances();
+        }
     }
 
     private void scanForInstances() {
