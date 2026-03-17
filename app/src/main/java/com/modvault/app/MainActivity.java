@@ -795,36 +795,15 @@ public class MainActivity extends AppCompatActivity {
                         versions -> {
                             try {
                                 if (versions != null && !versions.isEmpty()) {
-                                    // Find latest version matching same mc+loader
-                                    com.modvault.app.model.ModVersion latest = null;
-                                    for (com.modvault.app.model.ModVersion v : versions) {
-                                        boolean loaderMatch = finalMeta.loader != null
-                                            && v.loaders != null
-                                            && v.loaders.contains(finalMeta.loader);
-                                        boolean mcMatch = finalMeta.mcVersion != null
-                                            && v.gameVersions != null
-                                            && v.gameVersions.contains(finalMeta.mcVersion);
-                                        if (loaderMatch && mcMatch) { latest = v; break; }
-                                    }
-                                    if (latest != null) {
-                                        // Check if installed filename matches any file in the latest version
-                                        // If filename doesn't match = update available
-                                        boolean alreadyLatest = false;
-                                        if (latest.files != null) {
-                                            for (com.modvault.app.model.ModVersion.VersionFile vf : latest.files) {
-                                                if (vf.filename != null && vf.filename.equals(fileName)) {
-                                                    alreadyLatest = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if (!alreadyLatest) {
-                                            finalMeta.hasUpdate = true;
-                                            finalMeta.latestVersion = latest.versionNumber;
-                                            com.modvault.app.model.ModVersion.VersionFile f = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
-                                            if (f != null) { finalMeta.latestFileUrl = f.url; finalMeta.latestFileName = f.filename; }
-                                            updatesFound.incrementAndGet();
-                                        }
+                                    com.modvault.app.model.ModVersion latest = versions.get(0);
+                                    if (latest.versionNumber != null
+                                            && finalMeta.version != null
+                                            && !latest.versionNumber.equals(finalMeta.version)) {
+                                        finalMeta.hasUpdate = true;
+                                        finalMeta.latestVersion = latest.versionNumber;
+                                        com.modvault.app.model.ModVersion.VersionFile f = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
+                                        if (f != null) { finalMeta.latestFileUrl = f.url; finalMeta.latestFileName = f.filename; }
+                                        updatesFound.incrementAndGet();
                                     }
                                 }
                                 handler.post(() -> installedAdapter.updateMetaCache(fileName, finalMeta));
