@@ -1,6 +1,6 @@
 package com.modvault.app.api;
 
-import com.modvault.app.BuildConfig;
+import com.modvault.app.NativeSecrets;
 import com.modvault.app.model.ModResult;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -13,7 +13,7 @@ import okhttp3.Response;
 
 public class CurseForgeApi {
     private static final String BASE = "https://api.curseforge.com/v1";
-    private static final String API_KEY = BuildConfig.CURSEFORGE_API_KEY;
+    private static final String API_KEY = NativeSecrets.getCurseForgeKey();
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
 
