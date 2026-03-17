@@ -67,6 +67,11 @@ public class MainActivity extends AppCompatActivity {
     private String currentProjectType = "mod";
     private Button btnModrinth, btnCurseForge;
     private Button btnTypeMods, btnTypeResourcepack, btnTypeShader;
+    private TextView installedTabMods, installedTabShaders, installedTabResourcepacks, tvInstalledCount;
+    private String currentInstalledType = "mods";
+    private android.widget.CheckBox cbSelectAll;
+    private android.widget.Button btnCheckUpdates, btnUpdateAll, btnUpdateSelected;
+    private android.view.View layoutUpdateBar;
     private android.widget.CheckBox btnSnapshots;
     private boolean includeSnapshots = false;
     private RecyclerView instancesRecycler;
@@ -90,12 +95,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         prefs = new PrefManager(this);
-        downloader = new ModDownloader(this);
         downloader = new ModDownloader(this);
         requestStoragePermissionIfNeeded();
         initViews();
@@ -162,6 +165,15 @@ public class MainActivity extends AppCompatActivity {
         btnLoadMore     = findViewById(R.id.btn_load_more);
         btnSnapshots    = findViewById(R.id.btn_snapshots);
         btnChooseFolder = findViewById(R.id.btn_choose_folder);
+        installedTabMods = findViewById(R.id.installed_tab_mods);
+        installedTabShaders = findViewById(R.id.installed_tab_shaders);
+        installedTabResourcepacks = findViewById(R.id.installed_tab_resourcepacks);
+        tvInstalledCount = findViewById(R.id.tv_installed_count);
+        cbSelectAll = findViewById(R.id.cb_select_all);
+        btnCheckUpdates = findViewById(R.id.btn_check_updates);
+        btnUpdateAll = findViewById(R.id.btn_update_all);
+        btnUpdateSelected = findViewById(R.id.btn_update_selected);
+        layoutUpdateBar = findViewById(R.id.layout_update_bar);
     }
 
     private void setupBottomNav() {
@@ -314,6 +326,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+
     private void setupInstances() {
         instanceAdapter = new InstanceAdapter(this, instanceList, (instanceFolder, name) -> {
             android.net.Uri uri = android.net.Uri.fromFile(instanceFolder);
@@ -324,18 +338,20 @@ public class MainActivity extends AppCompatActivity {
         instancesRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
         instancesRecycler.setAdapter(instanceAdapter);
         btnScanInstances.setOnClickListener(v -> scanForInstances());
-        // Auto scan on open
-        scanForInstances();
+        // Auto scan on open - disabled on Android 11+ (no access to Android/data/)
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            scanForInstances();
+        }
     }
 
     private void scanForInstances() {
         instanceList.clear();
-        // Common launcher paths
+        String ext = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
         String[] basePaths = {
-            android.os.Environment.getExternalStorageDirectory() + "/games/PojavLauncher/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/CopperLauncher/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/Amethyst/custom_instances",
-            android.os.Environment.getExternalStorageDirectory() + "/games/PojavLauncher/instances",
+            ext + "/games/PojavLauncher/custom_instances",
+            ext + "/games/CopperLauncher/custom_instances",
+            ext + "/games/Amethyst/custom_instances",
+            ext + "/games/PojavLauncher/instances",
         };
         for (String path : basePaths) {
             java.io.File dir = new java.io.File(path);
@@ -350,16 +366,16 @@ public class MainActivity extends AppCompatActivity {
         }
         instanceAdapter.notifyDataSetChanged();
         if (instanceList.isEmpty()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 new androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle("No instances found")
-                    .setMessage("On Android 11+, launcher files in Android/data/ can't be accessed automatically.\n\nTap 'Browse' to manually navigate to your launcher's custom_instances folder.")
+                    .setMessage("On Android 11+, launcher files in Android/data/ can\'t be accessed automatically.\n\nTap \'Browse\' to manually navigate to your launcher\'s custom_instances folder.")
                     .setPositiveButton("Browse Android/data", (d, w) -> {
                         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
                         intent.putExtra("android.provider.extra.INITIAL_URI",
                             android.provider.DocumentsContract.buildDocumentUri(
                                 "com.android.externalstorage.documents", "primary:Android/data"));
-                        startActivityForResult(intent, 42);
+                        startActivityForResult(intent, REQUEST_FOLDER);
                     })
                     .setNegativeButton("Use Manual Picker", (d, w) -> btnChooseFolder.performClick())
                     .show();
@@ -427,27 +443,109 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupInstalledRecycler() {
-        installedAdapter = new InstalledModsAdapter(installedMods, mod -> {
-            String modName = (mod instanceof androidx.documentfile.provider.DocumentFile)
-                ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
-                : ((java.io.File) mod).getName();
-            new AlertDialog.Builder(this)
-                .setTitle("Delete mod?")
-                .setMessage("Remove \"" + modName + "\" from your instance folder?")
-                .setPositiveButton("Delete", (d, w) -> {
-                    boolean deleted = (mod instanceof androidx.documentfile.provider.DocumentFile)
-                        ? ((androidx.documentfile.provider.DocumentFile) mod).delete()
-                        : ((java.io.File) mod).delete();
-                    if (deleted) {
-                        refreshInstalled();
-                        Toast.makeText(this, "Mod removed", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        // Installed type tabs
+        installedTabMods.setOnClickListener(v -> { currentInstalledType = "mods"; switchInstalledTab(); refreshInstalled(); });
+        installedTabShaders.setOnClickListener(v -> { currentInstalledType = "shaderpacks"; switchInstalledTab(); refreshInstalled(); });
+        installedTabResourcepacks.setOnClickListener(v -> { currentInstalledType = "resourcepacks"; switchInstalledTab(); refreshInstalled(); });
+
+        installedAdapter = new InstalledModsAdapter(installedMods,
+            mod -> {
+                String modName = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                    : ((java.io.File) mod).getName();
+                new AlertDialog.Builder(this)
+                    .setTitle("Delete?")
+                    .setMessage("Remove \"" + modName + "\"?")
+                    .setPositiveButton("Delete", (d, w) -> {
+                        boolean deleted = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                            ? ((androidx.documentfile.provider.DocumentFile) mod).delete()
+                            : ((java.io.File) mod).delete();
+                        if (deleted) { refreshInstalled(); Toast.makeText(this, "Removed", Toast.LENGTH_SHORT).show(); }
+                    })
+                    .setNegativeButton("Cancel", null).show();
+            },
+            mod -> {
+                if (!"mods".equals(currentInstalledType)) return;
+                if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                    androidx.documentfile.provider.DocumentFile df = (androidx.documentfile.provider.DocumentFile) mod;
+                    String name = df.getName(); if (name == null) return;
+                    df.renameTo(name.endsWith(".disabled") ? name.replace(".disabled", "") : name + ".disabled");
+                    refreshInstalled();
+                } else if (mod instanceof java.io.File) {
+                    java.io.File f = (java.io.File) mod;
+                    String name = f.getName();
+                    f.renameTo(new java.io.File(f.getParent(), name.endsWith(".disabled") ? name.replace(".disabled", "") : name + ".disabled"));
+                    refreshInstalled();
+                }
+            },
+            (mod, meta) -> performUpdate(mod, meta)
+        );
+
+        // Check updates button
+        btnCheckUpdates.setOnClickListener(v -> checkUpdates());
+
+        // Update selected button
+        btnUpdateSelected.setOnClickListener(v -> {
+            java.util.List<Object> toUpdate = installedAdapter.getSelectedMods();
+            if (toUpdate.isEmpty()) {
+                Toast.makeText(this, "No mods selected", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            for (Object mod : toUpdate) {
+                String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                    ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                    : ((java.io.File) mod).getName();
+                com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+            }
+        });
+
+        // Update all button
+        btnUpdateAll.setOnClickListener(v -> {
+            java.util.List<Object> toUpdate = installedAdapter.getSelectedMods();
+            if (toUpdate.isEmpty()) {
+                // Update all that have updates
+                for (Object mod : installedMods) {
+                    String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
+                    com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                    if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+                }
+            } else {
+                for (Object mod : toUpdate) {
+                    String name = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
+                    com.modvault.app.utils.ModMetadata meta = installedAdapter.getMetaCache().get(name);
+                    if (meta != null && meta.hasUpdate) performUpdate(mod, meta);
+                }
+            }
+        });
+
+        // Select all checkbox
+        cbSelectAll.setOnCheckedChangeListener((btn, checked) -> {
+            installedAdapter.setShowCheckboxes(true);
+            if (checked) installedAdapter.selectAll();
+            else installedAdapter.deselectAll();
         });
         installedRecycler.setLayoutManager(new LinearLayoutManager(this));
         installedRecycler.setAdapter(installedAdapter);
+    }
+
+    private void switchInstalledTab() {
+        installedTabMods.setTextColor("mods".equals(currentInstalledType) ? 0xFFB87333 : 0xFF888888);
+        installedTabMods.setTypeface(null, "mods".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        installedTabShaders.setTextColor("shaderpacks".equals(currentInstalledType) ? 0xFFB87333 : 0xFF888888);
+        installedTabShaders.setTypeface(null, "shaderpacks".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        installedTabResourcepacks.setTextColor("resourcepacks".equals(currentInstalledType) ? 0xFFB87333 : 0xFF888888);
+        installedTabResourcepacks.setTypeface(null, "resourcepacks".equals(currentInstalledType) ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        installedAdapter.setShowDisable("mods".equals(currentInstalledType));
+        installedAdapter.setCurrentType(currentInstalledType);
+        installedAdapter.notifyDataSetChanged();
+    }
+
+    private void setupInstalledRecyclerDummy() {
     }
 
     private void setupSettings() {
@@ -653,7 +751,157 @@ public class MainActivity extends AppCompatActivity {
                 version.dependencies, getSelectedVersion(), getSelectedLoader(), callback);
         }
     }
+
+    private void checkUpdates() {
+        if (!"mods".equals(currentInstalledType)) {
+            Toast.makeText(this, "Updates only available for mods", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (installedMods.isEmpty()) {
+            Toast.makeText(this, "No mods to check", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        btnCheckUpdates.setEnabled(false);
+        btnCheckUpdates.setText("Checking...");
+        installedAdapter.setShowCheckboxes(true);
+
+        java.util.List<Object> modsCopy = new java.util.ArrayList<>(installedMods);
+        java.util.concurrent.atomic.AtomicInteger pending = new java.util.concurrent.atomic.AtomicInteger(modsCopy.size());
+        java.util.concurrent.atomic.AtomicInteger updatesFound = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        for (Object mod : modsCopy) {
+            new Thread(() -> {
+                try {
+                    com.modvault.app.utils.ModMetadata meta = null;
+                    if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+                        meta = com.modvault.app.utils.ModMetadataParser.parse(this, (androidx.documentfile.provider.DocumentFile) mod);
+                    } else if (mod instanceof java.io.File) {
+                        meta = com.modvault.app.utils.ModMetadataParser.parse((java.io.File) mod);
+                    }
+
+                    if (meta == null || meta.modId == null) {
+                        if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        return;
+                    }
+
+                    final com.modvault.app.utils.ModMetadata finalMeta = meta;
+                    String fileName = (mod instanceof androidx.documentfile.provider.DocumentFile)
+                        ? ((androidx.documentfile.provider.DocumentFile) mod).getName()
+                        : ((java.io.File) mod).getName();
+
+                    api.getVersions(finalMeta.modId,
+                        finalMeta.mcVersion != null ? finalMeta.mcVersion : "",
+                        finalMeta.loader != null ? finalMeta.loader : "",
+                        versions -> {
+                            try {
+                                if (versions != null && !versions.isEmpty()) {
+                                    // Find latest version that STRICTLY matches SAME mc version AND loader
+                                    com.modvault.app.model.ModVersion latest = null;
+                                    for (com.modvault.app.model.ModVersion v : versions) {
+                                        boolean loaderMatch = finalMeta.loader != null
+                                            && v.loaders != null
+                                            && v.loaders.contains(finalMeta.loader);
+                                        boolean mcMatch = finalMeta.mcVersion != null
+                                            && v.gameVersions != null
+                                            && v.gameVersions.contains(finalMeta.mcVersion);
+                                        if (loaderMatch && mcMatch) { latest = v; break; }
+                                    }
+                                    // Only update if strictly same mc+loader AND version number differs
+                                    if (latest != null && latest.versionNumber != null
+                                            && finalMeta.version != null
+                                            && !latest.versionNumber.equals(finalMeta.version)) {
+                                        finalMeta.hasUpdate = true;
+                                        finalMeta.latestVersion = latest.versionNumber;
+                                        com.modvault.app.model.ModVersion.VersionFile f = com.modvault.app.utils.ModDownloader.getPrimaryFile(latest);
+                                        if (f != null) { finalMeta.latestFileUrl = f.url; finalMeta.latestFileName = f.filename; }
+                                        updatesFound.incrementAndGet();
+                                    }
+                                }
+                                handler.post(() -> installedAdapter.updateMetaCache(fileName, finalMeta));
+                            } catch (Exception e) {
+                                android.util.Log.e("ModVault", "checkUpdates version error: " + e.getMessage());
+                            }
+                            if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        },
+                        error -> {
+                            if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                        });
+                } catch (Exception e) {
+                    android.util.Log.e("ModVault", "checkUpdates error: " + e.getMessage());
+                    if (pending.decrementAndGet() <= 0) finishCheckUpdates(updatesFound.get());
+                }
+            }).start();
+        }
+    }
+
+    private void finishCheckUpdates(int updatesFound) {
+        handler.post(() -> {
+            btnCheckUpdates.setEnabled(true);
+            btnCheckUpdates.setText("Check Updates");
+            if (updatesFound > 0) {
+                layoutUpdateBar.setVisibility(View.VISIBLE);
+                Toast.makeText(this, updatesFound + " update(s) available!", Toast.LENGTH_SHORT).show();
+            } else {
+                layoutUpdateBar.setVisibility(View.GONE);
+                Toast.makeText(this, "All mods up to date!", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void performUpdate(Object mod, com.modvault.app.utils.ModMetadata meta) {
+        if (meta.latestFileUrl == null) return;
+        com.modvault.app.model.ModVersion.VersionFile file = new com.modvault.app.model.ModVersion.VersionFile();
+        file.url = meta.latestFileUrl;
+        file.filename = meta.latestFileName;
+        file.primary = true;
+
+        // Delete old file first
+        if (mod instanceof androidx.documentfile.provider.DocumentFile) {
+            ((androidx.documentfile.provider.DocumentFile) mod).delete();
+        } else if (mod instanceof java.io.File) {
+            ((java.io.File) mod).delete();
+        }
+
+        // Download new
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+        progress.setTitle("Updating " + (meta.name != null ? meta.name : meta.modId));
+        progress.setMessage("Downloading " + meta.latestVersion + "...");
+        progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
+        progress.setMax(100);
+        progress.setCancelable(false);
+        progress.show();
+
+        com.modvault.app.utils.ModDownloader.DownloadCallback callback = new com.modvault.app.utils.ModDownloader.DownloadCallback() {
+            public void onProgress(String fileName, int percent) {
+                handler.post(() -> { progress.setMessage(fileName); progress.setProgress(percent); });
+            }
+            public void onSuccess(String fileName) {
+                handler.post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(MainActivity.this, "Updated to " + meta.latestVersion, Toast.LENGTH_SHORT).show();
+                    refreshInstalled();
+                });
+            }
+            public void onError(String error) {
+                handler.post(() -> { progress.dismiss(); Toast.makeText(MainActivity.this, "Update failed: " + error, Toast.LENGTH_LONG).show(); });
+            }
+        };
+
+        Uri instanceUri = prefs.getInstanceUri();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
+                && instanceUri != null && "content".equals(instanceUri.getScheme())) {
+            downloader.downloadMod(file, instanceUri, "mods", null, meta.mcVersion != null ? meta.mcVersion : "", meta.loader != null ? meta.loader : "", callback);
+        } else {
+            java.io.File instanceDir = getLegacyInstanceDir();
+            if (instanceDir == null) { progress.dismiss(); return; }
+            java.io.File modsDir = new java.io.File(instanceDir, "mods");
+            if (!modsDir.exists()) modsDir.mkdirs();
+            downloader.downloadMod(file, modsDir, null, meta.mcVersion != null ? meta.mcVersion : "", meta.loader != null ? meta.loader : "", callback);
+        }
+    }
+
     private void refreshInstalled() {
+        try {
         installedMods.clear();
         Uri instanceUri = prefs.getInstanceUri();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
@@ -661,29 +909,40 @@ public class MainActivity extends AppCompatActivity {
             androidx.documentfile.provider.DocumentFile instanceDir =
                 androidx.documentfile.provider.DocumentFile.fromTreeUri(this, instanceUri);
             if (instanceDir != null && instanceDir.exists()) {
-                androidx.documentfile.provider.DocumentFile modsDir = instanceDir.findFile("mods");
-                if (modsDir != null && modsDir.exists()) {
-                    for (androidx.documentfile.provider.DocumentFile f : modsDir.listFiles()) {
+                androidx.documentfile.provider.DocumentFile subDir = instanceDir.findFile(currentInstalledType);
+                if (subDir != null && subDir.exists()) {
+                    for (androidx.documentfile.provider.DocumentFile f : subDir.listFiles()) {
                         String name = f.getName();
-                        if (name != null && (name.endsWith(".jar") || name.endsWith(".zip")))
+                        if (name != null && (name.endsWith(".jar") || name.endsWith(".zip") || name.endsWith(".disabled")))
                             installedMods.add(f);
                     }
                 }
             }
-            installedAdapter.notifyDataSetChanged();
-            emptyInstalled.setVisibility(installedMods.isEmpty() ? View.VISIBLE : View.GONE);
-            return;
-        }
-        java.io.File[] files = getInstalledFiles();
-        if (files != null) {
-            for (java.io.File f : files) {
-                if (f.getName().endsWith(".jar") || f.getName().endsWith(".zip")) {
-                    installedMods.add(f);
+        } else {
+            java.io.File instanceDir2 = getLegacyInstanceDir();
+            if (instanceDir2 != null) {
+                java.io.File subDir = new java.io.File(instanceDir2, currentInstalledType);
+                if (subDir.exists()) {
+                    java.io.File[] files = subDir.listFiles();
+                    if (files != null) {
+                        for (java.io.File f : files) {
+                            String name = f.getName();
+                            if (name.endsWith(".jar") || name.endsWith(".zip") || name.endsWith(".disabled"))
+                                installedMods.add(f);
+                        }
+                    }
                 }
             }
         }
         installedAdapter.notifyDataSetChanged();
+        if (tvInstalledCount != null)
+            tvInstalledCount.setText(installedMods.size() + " files");
         emptyInstalled.setVisibility(installedMods.isEmpty() ? View.VISIBLE : View.GONE);
+        installedAdapter.notifyDataSetChanged();
+        } catch (Exception e) {
+            android.util.Log.e("ModVault", "refreshInstalled error: " + e.getMessage());
+            Toast.makeText(this, "Error loading installed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private java.io.File[] getInstalledFiles() {
@@ -733,6 +992,8 @@ public class MainActivity extends AppCompatActivity {
     private String getRealPathFromUri(Uri uri) {
         try {
             String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+            // Decode URL encoding
+            docId = java.net.URLDecoder.decode(docId, "UTF-8");
             String[] split = docId.split(":");
             if (split.length >= 2) {
                 String type = split[0];
@@ -755,11 +1016,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            prefs.saveModsUri(uri);
+            // Always try to convert to real file:// path
+            String realPath = getRealPathFromUri(uri);
+            Uri uriToSave = (realPath != null) ? Uri.fromFile(new java.io.File(realPath)) : uri;
+            prefs.saveInstanceUri(uriToSave);
             updateFolderLabel();
             refreshSavedPaths();
             Toast.makeText(this, "Instance folder set!", Toast.LENGTH_SHORT).show();

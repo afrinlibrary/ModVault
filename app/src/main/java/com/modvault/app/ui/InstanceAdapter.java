@@ -33,11 +33,26 @@ public class InstanceAdapter extends RecyclerView.Adapter<InstanceAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         File instance = instances.get(position);
-        holder.name.setText(instance.getName());
-        holder.path.setText(instance.getAbsolutePath());
-        holder.select.setOnClickListener(v -> {
-            listener.onSelect(instance, instance.getName());
-        });
+        String absPath = instance.getAbsolutePath();
+        if (absPath.startsWith("/saf_instance/")) {
+            // SAF instance - extract URI and name
+            String withoutPrefix = absPath.substring("/saf_instance/".length());
+            int lastSlash = withoutPrefix.lastIndexOf("/");
+            String uriStr = withoutPrefix.substring(0, lastSlash);
+            String name = withoutPrefix.substring(lastSlash + 1);
+            holder.name.setText(name);
+            holder.path.setText(uriStr.length() > 50 ? "..." + uriStr.substring(uriStr.length()-50) : uriStr);
+            holder.select.setOnClickListener(v -> {
+                android.net.Uri uri = android.net.Uri.parse(uriStr);
+                listener.onSelect(instance, name); // pass marker file
+            });
+        } else {
+            holder.name.setText(instance.getName());
+            holder.path.setText(instance.getAbsolutePath());
+            holder.select.setOnClickListener(v -> {
+                listener.onSelect(instance, instance.getName());
+            });
+        }
     }
 
     @Override public int getItemCount() { return instances.size(); }

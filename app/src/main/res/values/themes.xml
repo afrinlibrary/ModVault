@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="android:forceDarkAllowed">false</item>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowBackground">#0D0D0D</item>
         <item name="colorPrimary">#B87333</item>
         <item name="colorPrimaryDark">#1A120A</item>

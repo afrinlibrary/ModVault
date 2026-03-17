@@ -235,14 +235,118 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:visibility="gone">
-
-            <TextView
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:background="#1A120A">
+                <TextView
+                    android:id="@+id/installed_tab_mods"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Mods"
+                    android:textColor="#B87333"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:gravity="center"/>
+                <TextView
+                    android:id="@+id/installed_tab_shaders"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Shaders"
+                    android:textColor="#888888"
+                    android:textSize="13sp"
+                    android:gravity="center"/>
+                <TextView
+                    android:id="@+id/installed_tab_resourcepacks"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="Res Packs"
+                    android:textColor="#888888"
+                    android:textSize="13sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="#B87333"/>
+            <!-- Toolbar row 1: file count + check updates -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Installed Mods"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="4dp">
+                <TextView
+                    android:id="@+id/tv_installed_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0 files"
+                    android:textColor="#888888"
+                    android:textSize="12sp"/>
+                <Button
+                    android:id="@+id/btn_check_updates"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:text="Check Updates"
+                    android:textColor="#B87333"
+                    android:textSize="11sp"
+                    android:backgroundTint="#241810"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
+            </LinearLayout>
+
+            <!-- Toolbar row 2: select all + update selected (hidden until updates found) -->
+            <LinearLayout
+                android:id="@+id/layout_update_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingBottom="6dp"
+                android:visibility="gone">
+                <CheckBox
+                    android:id="@+id/cb_select_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select All"
+                    android:textColor="#AAAAAA"
+                    android:textSize="12sp"
+                    android:buttonTint="#B87333"
+                    android:layout_marginEnd="8dp"/>
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"/>
+                <Button
+                    android:id="@+id/btn_update_selected"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:text="Update Selected"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:backgroundTint="#241810"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:layout_marginEnd="6dp"/>
+                <Button
+                    android:id="@+id/btn_update_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:text="Update All"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:backgroundTint="#B87333"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
+            </LinearLayout>
                 android:padding="16dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -335,6 +439,12 @@
                 android:layout_height="1dp"
                 android:background="#333"
                 android:layout_marginBottom="16dp"/>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#333"
+                android:layout_marginBottom="16dp"/>
+
             <!-- Manual Folder Section -->
             <TextView
                 android:layout_width="match_parent"

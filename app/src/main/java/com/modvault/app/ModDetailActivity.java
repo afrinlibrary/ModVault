@@ -104,6 +104,17 @@ public class ModDetailActivity extends AppCompatActivity {
             }
         }
 
+        // Fetch full project details for followers count
+        api.getProject(mod.projectId, new com.modvault.app.api.ModrinthApi.Callback<com.modvault.app.model.ModResult>() {
+            public void onSuccess(com.modvault.app.model.ModResult fullMod) {
+                handler.post(() -> {
+                    ((TextView) findViewById(R.id.detail_followers)).setText(formatNumber(fullMod.followers));
+                    ((TextView) findViewById(R.id.detail_downloads)).setText(formatNumber(fullMod.downloads));
+                });
+            }
+            public void onError(String error) {}
+        });
+
         // Load versions
         ProgressBar progress = findViewById(R.id.detail_versions_progress);
         RecyclerView versionsRecycler = findViewById(R.id.detail_versions_recycler);
