@@ -1016,13 +1016,20 @@ public class MainActivity extends AppCompatActivity {
 
     /** Legacy: get mods dir as File for Android < 11 */
     private java.io.File getLegacyInstanceDir() {
-        Uri uri = prefs.getInstanceUri();
-        if (uri == null) return null;
-        if ("file".equals(uri.getScheme())) return new java.io.File(uri.getPath());
-        if ("content".equals(uri.getScheme())) {
-            String path = getRealPathFromUri(uri);
-            if (path != null) return new java.io.File(path);
+    Uri uri = prefs.getInstanceUri();
+    if (uri == null) return null;
+
+    String path = uri.getPath();
+
+    if (path != null && path.contains(":")) {
+        String[] split = path.split(":");
+        if (split.length >= 2) {
+            return new java.io.File("/storage/emulated/0/" + split[1]);
         }
+    }
+
+    return new java.io.File(path);
+}
         return null;
     }
 
@@ -1039,17 +1046,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String getRealPathFromUri(Uri uri) {
-        try {
-            String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
-            // Decode URL encoding
-            docId = java.net.URLDecoder.decode(docId, "UTF-8");
-            String[] split = docId.split(":");
-            if (split.length >= 2) {
-                String type = split[0];
-                String relativePath = split[1];
-                if ("primary".equalsIgnoreCase(type)) {
-                    return android.os.Environment.getExternalStorageDirectory() + "/" + relativePath;
-                }
+    if (uri == null) return null;
+
+    String path = uri.getPath();
+
+    if (path != null && path.contains(":")) {
+        String[] split = path.split(":");
+        if (split.length >= 2) {
+            return "/storage/emulated/0/" + split[1];
+        }
+    }
+
+    return path;
+}
             }
         } catch (Exception e) {
             android.util.Log.e("ModVault", "getRealPathFromUri failed: " + e.getMessage());
