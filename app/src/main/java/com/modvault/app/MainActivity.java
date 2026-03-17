@@ -1019,7 +1019,10 @@ public class MainActivity extends AppCompatActivity {
             Uri uri = data.getData();
             getContentResolver().takePersistableUriPermission(uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            prefs.saveModsUri(uri);
+            // Always try to convert to real file:// path
+            String realPath = getRealPathFromUri(uri);
+            Uri uriToSave = (realPath != null) ? Uri.fromFile(new java.io.File(realPath)) : uri;
+            prefs.saveInstanceUri(uriToSave);
             updateFolderLabel();
             refreshSavedPaths();
             Toast.makeText(this, "Instance folder set!", Toast.LENGTH_SHORT).show();
