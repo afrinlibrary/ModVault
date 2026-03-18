@@ -1,7 +1,6 @@
 package com.modvault.app.utils;
 
 import android.content.Context;
-import android.net.Uri;
 import androidx.documentfile.provider.DocumentFile;
 import java.io.InputStream;
 import java.util.zip.ZipEntry;
@@ -35,7 +34,7 @@ public class ModMetadataParser {
                     meta.loader = "fabric";
                 } else if ("quilt.mod.json".equals(name) && meta.modId == null) {
                     String json = new String(readBytes(zip), "UTF-8");
-                    parseFabric(json, meta); // quilt uses same format
+                    parseFabric(json, meta);
                     meta.loader = "quilt";
                 } else if ("META-INF/mods.toml".equals(name)) {
                     String toml = new String(readBytes(zip), "UTF-8");
@@ -47,7 +46,7 @@ public class ModMetadataParser {
                     meta.loader = "neoforge";
                 }
                 zip.closeEntry();
-                if (meta.modId != null && meta.version != null) break;
+                // Don't break early - need to read all relevant entries
             }
         } catch (Exception e) { return null; }
         return meta.modId != null ? meta : null;
@@ -61,11 +60,16 @@ public class ModMetadataParser {
         // MC version from depends.minecraft
         String depends = extractJsonBlock(json, "depends");
         if (depends != null) {
-            meta.mcVersion = extractJsonString(depends, "minecraft");
-            if (meta.mcVersion != null) {
-                // Clean up version string like ">=1.21 <1.22" -> "1.21"
-                meta.mcVersion = meta.mcVersion.replaceAll("[^0-9.]", "").trim();
-                if (meta.mcVersion.endsWith(".")) meta.mcVersion = meta.mcVersion.substring(0, meta.mcVersion.length()-1);
+            String mcVer = extractJsonString(depends, "minecraft");
+            if (mcVer != null) {
+                // Extract first version number from strings like ">=1.21.1 <1.22" or "~1.21.1"
+                // Find first digit sequence with dots
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("(\\d+\\.\\d+(?:\\.\\d+)?)")
+                    .matcher(mcVer);
+                if (m.find()) {
+                    meta.mcVersion = m.group(1);
+                }
             }
         }
     }
@@ -75,7 +79,7 @@ public class ModMetadataParser {
         meta.version = extractTomlString(toml, "version");
         meta.name = extractTomlString(toml, "displayName");
         meta.iconPath = extractTomlString(toml, "logoFile");
-        // MC version from dependencies
+        // MC version from dependencies versionRange
         int depIdx = toml.indexOf("\"minecraft\"");
         if (depIdx == -1) depIdx = toml.indexOf("'minecraft'");
         if (depIdx != -1) {
@@ -83,8 +87,12 @@ public class ModMetadataParser {
             if (versionRange != -1) {
                 String vr = extractTomlString(toml.substring(versionRange), "versionRange");
                 if (vr != null) {
-                    meta.mcVersion = vr.replaceAll("[^0-9.]", "").trim();
-                    if (meta.mcVersion.endsWith(".")) meta.mcVersion = meta.mcVersion.substring(0, meta.mcVersion.length()-1);
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("(\\d+\\.\\d+(?:\\.\\d+)?)")
+                        .matcher(vr);
+                    if (m.find()) {
+                        meta.mcVersion = m.group(1);
+                    }
                 }
             }
         }
@@ -96,12 +104,12 @@ public class ModMetadataParser {
             int idx = json.indexOf(search);
             if (idx == -1) return null;
             int colon = json.indexOf(":", idx + search.length());
-            // Skip whitespace
             int start = colon + 1;
             while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\n' || json.charAt(start) == '\r')) start++;
-            if (json.charAt(start) != '"') return null;
+            if (start >= json.length() || json.charAt(start) != '"') return null;
             start++;
             int end = json.indexOf("\"", start);
+            if (end == -1) return null;
             return json.substring(start, end);
         } catch (Exception e) { return null; }
     }
@@ -133,6 +141,7 @@ public class ModMetadataParser {
             if (start == -1) return null;
             start++;
             int end = toml.indexOf("\"", start);
+            if (end == -1) return null;
             return toml.substring(start, end);
         } catch (Exception e) { return null; }
     }
