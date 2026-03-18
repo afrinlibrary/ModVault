@@ -764,6 +764,9 @@ public class MainActivity extends AppCompatActivity {
         btnCheckUpdates.setEnabled(false);
         btnCheckUpdates.setText("Checking...");
         installedAdapter.setShowCheckboxes(true);
+        // Clear old cache so stale update badges don't persist
+        installedAdapter.getMetaCache().clear();
+        installedAdapter.notifyDataSetChanged();
 
         java.util.List<Object> modsCopy = new java.util.ArrayList<>(installedMods);
         java.util.concurrent.atomic.AtomicInteger pending = new java.util.concurrent.atomic.AtomicInteger(modsCopy.size());
