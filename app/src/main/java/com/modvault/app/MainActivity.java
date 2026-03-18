@@ -798,8 +798,17 @@ public class MainActivity extends AppCompatActivity {
                         versions -> {
                             try {
                                 if (versions != null && !versions.isEmpty()) {
-                                    com.modvault.app.model.ModVersion latest = versions.get(0);
-                                    if (latest.versionNumber != null
+                                    // Find latest version that STRICTLY matches same MC version AND loader
+                                    com.modvault.app.model.ModVersion latest = null;
+                                    for (com.modvault.app.model.ModVersion v : versions) {
+                                        boolean loaderOk = finalMeta.loader == null || v.loaders == null
+                                            || v.loaders.contains(finalMeta.loader);
+                                        boolean mcOk = finalMeta.mcVersion == null || v.gameVersions == null
+                                            || v.gameVersions.contains(finalMeta.mcVersion);
+                                        if (loaderOk && mcOk) { latest = v; break; }
+                                    }
+                                    if (latest != null
+                                            && latest.versionNumber != null
                                             && finalMeta.version != null
                                             && !latest.versionNumber.equals(finalMeta.version)) {
                                         finalMeta.hasUpdate = true;
