@@ -868,6 +868,8 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(() -> {
                     progress.dismiss();
                     Toast.makeText(MainActivity.this, "Updated to " + meta.latestVersion, Toast.LENGTH_SHORT).show();
+                    installedAdapter.getMetaCache().remove(meta.latestFileName);
+                    installedAdapter.getMetaCache().remove(file.filename);
                     refreshInstalled();
                 });
             }
@@ -891,6 +893,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshInstalled() {
         try {
+        installedAdapter.getMetaCache().clear();
+        layoutUpdateBar.setVisibility(View.GONE);
         installedMods.clear();
         Uri instanceUri = prefs.getInstanceUri();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
