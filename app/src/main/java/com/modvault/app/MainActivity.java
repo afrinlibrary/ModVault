@@ -795,19 +795,8 @@ public class MainActivity extends AppCompatActivity {
                         versions -> {
                             try {
                                 if (versions != null && !versions.isEmpty()) {
-                                    // Find latest version that STRICTLY matches SAME mc version AND loader
-                                    com.modvault.app.model.ModVersion latest = null;
-                                    for (com.modvault.app.model.ModVersion v : versions) {
-                                        boolean loaderMatch = finalMeta.loader != null
-                                            && v.loaders != null
-                                            && v.loaders.contains(finalMeta.loader);
-                                        boolean mcMatch = finalMeta.mcVersion != null
-                                            && v.gameVersions != null
-                                            && v.gameVersions.contains(finalMeta.mcVersion);
-                                        if (loaderMatch && mcMatch) { latest = v; break; }
-                                    }
-                                    // Only update if strictly same mc+loader AND version number differs
-                                    if (latest != null && latest.versionNumber != null
+                                    com.modvault.app.model.ModVersion latest = versions.get(0);
+                                    if (latest.versionNumber != null
                                             && finalMeta.version != null
                                             && !latest.versionNumber.equals(finalMeta.version)) {
                                         finalMeta.hasUpdate = true;
