@@ -800,6 +800,7 @@ public class MainActivity extends AppCompatActivity {
                                 if (versions != null && !versions.isEmpty()) {
                                     // Find latest version that STRICTLY matches same MC version AND loader
                                     com.modvault.app.model.ModVersion latest = null;
+        finalMeta.hasUpdate = false;
                                     for (com.modvault.app.model.ModVersion v : versions) {
                                         boolean loaderOk = finalMeta.loader == null || v.loaders == null
                                             || v.loaders.contains(finalMeta.loader);
